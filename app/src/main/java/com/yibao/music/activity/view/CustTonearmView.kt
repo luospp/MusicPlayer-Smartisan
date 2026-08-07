@@ -121,50 +121,8 @@ class CustTonearmView @JvmOverloads constructor(
         return isDistanceInHead && angleDiff < 45f
     }
 
-     fun onTouchEvents(event: MotionEvent): Boolean {
-        if (!pivotsInitialized) return false
-        when (event.action) {
-            MotionEvent.ACTION_DOWN -> {
-                returnAnimator?.cancel()
-                lastAnimator?.cancel()
-                isUserTouching = true
-            }
-
-            MotionEvent.ACTION_MOVE -> {
-                val dx = event.x - centerX
-                val dy = event.y - centerY
-                val radians = atan2(dy.toDouble(), dx.toDouble())
-                var degrees = Math.toDegrees(radians).toFloat()
-                if (degrees < 0) degrees += 360f
-
-                val constrainedDegrees = degrees.coerceIn(minDegree, maxDegree)
-                val targetRotation = constrainedDegrees - 90f
-                mBinding.rotationContainer.rotation = targetRotation
-
-
-                if (constrainedDegrees in startDegree..endDegree) {
-                    val progress = (constrainedDegrees - startDegree) / (endDegree - startDegree)
-                    listener?.onStateChanged(StylusState.Adjusting(progress.coerceIn(0f, 1f)))
-                } else if (constrainedDegrees < startDegree) {
-                    listener?.onStateChanged(StylusState.Reset)
-                }
-            }
-
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                isUserTouching = false
-                val currentRotation = mBinding.rotationContainer.rotation
-                val offDegree = returnDefaultPositionDegree - 90
-
-                if (currentRotation < offDegree) {
-                    resetStylus()
-                    listener?.onStateChanged(StylusState.Reset)
-                }
-            }
-        }
-        return true
-    }
-
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        mBinding.ivStylusShadow.visibility = VISIBLE
         if (!pivotsInitialized) return super.onTouchEvent(event)
 
         when (event.action) {
@@ -293,6 +251,24 @@ class CustTonearmView @JvmOverloads constructor(
             interpolator = DecelerateInterpolator()
             start()
         }
+        // 在两秒内渐渐消失
+        // 2. 阴影淡出动画（新增）
+        mBinding.ivStylusShadow.apply {
+            // 确保可见且 alpha=1.0（如果之前可能被修改过）
+            visibility = VISIBLE
+            alpha = 1.0f
+
+            animate()  // ViewPropertyAnimator
+                .alpha(0f)
+                .setDuration(3000)
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    // 动画结束后隐藏视图（避免仍占用点击事件等）
+//                    visibility = GONE
+                }
+                .start()
+        }
+
     }
 
     fun setListener(l: OnStylusChangeListener) {

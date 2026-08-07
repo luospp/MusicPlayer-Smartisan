@@ -326,7 +326,10 @@ public class MusicPlayService extends Service {
 
         // 改变播放倍速实现搓碟效果
         public void setPlaybackParams(PlaybackParams params) {
-            mediaPlayer.setPlaybackParams(params);
+
+            if (mediaPlayer.isPlaying()) {
+                mediaPlayer.setPlaybackParams(params);
+            }
         }
 
 
@@ -363,6 +366,7 @@ public class MusicPlayService extends Service {
         }
 
     }
+
 
     private void refreshFavorite(MusicBean currentMusicBean, boolean mCurrentIsFavorite) {
         // 数据更新

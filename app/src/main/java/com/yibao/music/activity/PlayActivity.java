@@ -355,6 +355,8 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
         }
     }
 
+    private long lastParamUpdateTime = 0; // 引入时间戳防抖
+
     private void initListener() {
         mBinding.stylusContainer.setListener(state -> {
             if (state instanceof StylusState.Reset) {
@@ -377,36 +379,62 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
 
 
         });
+
+
         mBinding.rotateRl.setDiscListener(new OnDiscTouchListener() {
             @Override
             public void onActionMove(float rotation, float speed) {
-                // 1. 调整播放进度 (映射旋转到进度)
-                // 搓碟通常是微调，这里可以根据 speed 的正负执行 seekTo
+                // 1. 状态安全检查：如果当前 binder 没准备好或者根本没歌，直接拦截
+                if (audioBinder == null) return;
+
+                // 2. 性能优化：限制每 30ms 才能调用一次底层底层 setPlaybackParams
+                // 避免一秒钟调用成百上千次导致底层 Native 缓冲区溢出
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastParamUpdateTime < 30) {
+                    return;
+                }
+                lastParamUpdateTime = currentTime;
+
+                // 3. 调整播放进度
                 if (Math.abs(speed) > 1.0f) {
                     long currentPos = audioBinder.getProgress();
-                    // 比例系数：旋转 1 度对应 100ms 进度变化（可调）
                     long offset = (long) (speed * 100);
-                    audioBinder.seekTo(Math.toIntExact(currentPos + offset));
+                    // audioBinder.seekTo(Math.toIntExact(currentPos + offset));
                 }
-                // 2. 模拟“搓碟”变调效果 (改变倍速)
-                // 将 speed 映射到倍速区间 0.5 ~ 2.0
+
+                // 4. 模拟“搓碟”变调效果
                 float pitch = 1.0f + (speed / 50.0f);
                 float safePitch = Math.max(0.5f, Math.min(2.0f, pitch));
 
                 PlaybackParams params = new PlaybackParams();
                 params.setSpeed(safePitch);
-                params.setPitch(safePitch); // 改变音调，听起来更有“摩擦”感
+                params.setPitch(safePitch);
+                // 顺畅安全调用
                 audioBinder.setPlaybackParams(params);
-                updatePlayBtnStatus();
+
+            }
+
+            @Override
+            public void onActionDown() {
+                if (audioBinder != null) {
+                    audioBinder.pause();
+                }
             }
 
             @Override
             public void onActionUp() {
-                // 恢复正常播放倍速
-                audioBinder.setPlaybackParams(new PlaybackParams().setSpeed(1.0f).setPitch(1.0f));
+                if (audioBinder != null) {
+                    // 恢复正常播放倍速
+                    PlaybackParams normalParams = new PlaybackParams();
+                    normalParams.setSpeed(1.0f);
+                    normalParams.setPitch(1.0f);
+                    audioBinder.setPlaybackParams(normalParams);
+                    // 稍作延时或者直接启动
+                    audioBinder.start();
+                    updatePlayBtnStatus();
+                }
             }
         });
-
 
         mBinding.sbProgress.setOnSeekBarChangeListener(new SeekBarListener());
         mBinding.sbVolume.setOnSeekBarChangeListener(new SeekBarListener());

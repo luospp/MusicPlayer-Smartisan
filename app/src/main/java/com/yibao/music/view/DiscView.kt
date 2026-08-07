@@ -1,5 +1,6 @@
 package com.yibao.music.view
 
+
 import android.animation.ValueAnimator
 import android.content.Context
 import android.util.AttributeSet
@@ -17,26 +18,16 @@ class DiscView @JvmOverloads constructor(
 
     private var currentRotation = 0f
     private var isUserTouching = false
-
+    private var lastAngle = 0f
 
     var discListener: OnDiscTouchListener? = null
-
-    // 自动旋转动画
     var autoAnimator: ValueAnimator? = null
-
-    // 惯性动画
     var flingAnimator: ValueAnimator? = null
 
-    // 手势检测，用于计算 Fling
+    // 💡 优化 1：手势检测器只保留 onFling，必须重写 onDown 并返回 true，否则无法触发 Fling
     private val gestureDetector =
         GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
-            override fun onScroll(
-                e1: MotionEvent?,
-                e2: MotionEvent,
-                distanceX: Float,
-                distanceY: Float
-            ): Boolean {
-                handleScroll(e2.x, e2.y)
+            override fun onDown(e: MotionEvent): Boolean {
                 return true
             }
 
@@ -51,31 +42,32 @@ class DiscView @JvmOverloads constructor(
             }
         })
 
+    // 💡 优化 2：全权负责角度计算，每帧只触发一次
     private fun handleScroll(x: Float, y: Float) {
         val centerX = width / 2f
         val centerY = height / 2f
-        // 计算当前手指相对于中心点的角度
-        val angle =
-            Math.toDegrees(atan2((y - centerY).toDouble(), (x - centerX).toDouble())).toFloat()
 
-        if (lastAngle != 0f) {
-            var diff = angle - lastAngle
-            // 处理 180/-180 跳变
-            if (diff > 180) diff -= 360
-            if (diff < -180) diff += 360
+        // 计算当前手指相对于中心点的绝对角度
+        val angle = Math.toDegrees(atan2((y - centerY).toDouble(), (x - centerX).toDouble())).toFloat()
 
-            updateRotation(currentRotation + diff)
-            // 这里可以回调给 Activity 做搓碟音效：diff 代表了瞬时速度
-            discListener?.onActionMove(currentRotation, diff)
-        }
+        // 💡 修复：去掉了 if (lastAngle != 0f) 的错误判定，改用 ACTION_DOWN 必然初始化保证
+        var diff = angle - lastAngle
+
+        // 处理 180/-180 度边界跳变
+        if (diff > 180) diff -= 360
+        if (diff < -180) diff += 360
+
+        updateRotation(currentRotation + diff)
+
+        // 🎯 此时回调给 Activity 的 diff 极其平滑稳定，音频变调再也不会抖动
+        discListener?.onActionMove(currentRotation, diff)
+
         lastAngle = angle
     }
 
-    private var lastAngle = 0f
-
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        // 1. 让手势检测器先行处理（处理 Fling 等）
-        val gestureConsumed = gestureDetector.onTouchEvent(event)
+        // 仅让手势检测器在后台收集数据（用于 UP 时触发 onFling）
+        gestureDetector.onTouchEvent(event)
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -85,41 +77,40 @@ class DiscView @JvmOverloads constructor(
 
                 val centerX = width / 2f
                 val centerY = height / 2f
+                // 完美初始化起始角度
                 lastAngle = Math.toDegrees(
                     atan2((event.y - centerY).toDouble(), (event.x - centerX).toDouble())
                 ).toFloat()
+
+                discListener?.onActionDown()
             }
 
             MotionEvent.ACTION_MOVE -> {
-                // 手动调用滑动处理，确保即使手势检测器没反应，唱片也能跟手
+                // 💡 核心改动：统一、唯一在这里处理滑动，远离双重调用
                 handleScroll(event.x, event.y)
             }
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 isUserTouching = false
-                // 如果手势检测器没有触发 Fling 动画，我们才恢复自动旋转
+                // 如果没有触发惯性动画，恢复自动旋转
                 if (flingAnimator == null || !flingAnimator!!.isRunning) {
                     autoAnimator?.resume()
                 }
-                lastAngle = 0f
+                discListener?.onActionUp()
             }
         }
-        // 2. 关键：必须返回 true，否则 ACTION_DOWN 之后再也收不到 MOVE 和 UP
         return true
     }
-
 
     private fun updateRotation(rot: Float) {
         currentRotation = rot % 360
         rotation = currentRotation
     }
 
-    // 惯性逻辑
     private fun startFling(vx: Float, vy: Float) {
-        // 将线性速度转为角速度 (估算值)
         val angularVelocity = (vx + vy) / 50f
         flingAnimator = ValueAnimator.ofFloat(angularVelocity, 0f).apply {
-            duration = 1500 // 惯性持续时间
+            duration = 1500
             interpolator = android.view.animation.DecelerateInterpolator()
             addUpdateListener {
                 if (!isUserTouching) {
@@ -127,7 +118,6 @@ class DiscView @JvmOverloads constructor(
                     updateRotation(currentRotation + v)
                 }
             }
-            // 惯性结束后恢复自动旋转
             doOnEnd { if (!isUserTouching) autoAnimator?.resume() }
             start()
         }
@@ -140,14 +130,10 @@ class DiscView @JvmOverloads constructor(
             repeatCount = ValueAnimator.INFINITE
             addUpdateListener {
                 if (!isUserTouching && (flingAnimator == null || !flingAnimator!!.isRunning)) {
-                    // 自动旋转时累加角度
-                    updateRotation(currentRotation + 360f / (15000 / 16f)) // 每帧约 60fps 增量
+                    updateRotation(currentRotation + 360f / (15000 / 16f))
                 }
             }
             start()
         }
     }
-
-
 }
-

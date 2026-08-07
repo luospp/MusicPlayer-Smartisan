@@ -3,9 +3,11 @@ package com.yibao.music.base;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.DialogFragment;
+
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,7 +30,7 @@ public abstract class BaseDialogFragment
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
 
-        getDialog().requestWindowFeature(Window.FEATURE_NO_TITLE);
+        Objects.requireNonNull(getDialog()).requestWindowFeature(Window.FEATURE_NO_TITLE);
         Objects.requireNonNull(getDialog().getWindow())
                 .setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
 
