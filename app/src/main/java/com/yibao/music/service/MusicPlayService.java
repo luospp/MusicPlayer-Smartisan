@@ -526,7 +526,6 @@ public class MusicPlayService extends Service {
     public void abandonAudioFocus() {
         if (mAudioManager != null) {
             mAudioManager.abandonAudioFocus(mAudioFocusChange);
-
         }
     }
 
