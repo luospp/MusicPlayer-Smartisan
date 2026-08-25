@@ -97,6 +97,13 @@ public class MusicView
     }
 
     /**
+     * 获取列表控件，用于列表/平铺切换动画等场景
+     */
+    public RecyclerView getRecyclerView() {
+        return mRecyclerView;
+    }
+
+    /**
      * //设置列表的适配器
      *
      * @param context        c
@@ -166,7 +173,6 @@ public class MusicView
         }
     }
 }
-
 
 
 
