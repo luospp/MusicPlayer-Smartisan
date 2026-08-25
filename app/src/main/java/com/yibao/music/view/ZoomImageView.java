@@ -14,7 +14,7 @@ import android.view.ScaleGestureDetector;
 import android.view.View;
 import android.view.ViewConfiguration;
 import android.view.ViewTreeObserver;
-import android.widget.ImageView;
+import androidx.appcompat.widget.AppCompatImageView;
 
 
 /**
@@ -23,7 +23,7 @@ import android.widget.ImageView;
  * @author Created by Stran on 2016/12/16.
  */
 public class ZoomImageView
-        extends ImageView
+        extends AppCompatImageView
         implements ViewTreeObserver.OnGlobalLayoutListener
         , View.OnTouchListener, ScaleGestureDetector.OnScaleGestureListener {
 
@@ -583,4 +583,3 @@ public class ZoomImageView
     }
 
 }
-

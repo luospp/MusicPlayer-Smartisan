@@ -159,12 +159,13 @@ class NewTonearmView @JvmOverloads constructor(
      */
     fun updateProgress(progress: Float, animate: Boolean = false) {
         if (isUserTouching) return
+        val stylus = ivStylus ?: return
         val safeProgress = progress.coerceIn(0f, 1f)
         val targetDegree = startDegree + (endDegree - startDegree) * safeProgress
         val targetRotation = targetDegree - 90f
 
         // 1. 判断当前唱针是否处于归位/暂停状态（旋转角度接近 0f）
-        val isAtResetPosition = abs(ivStylus?.rotation ?: 0f) < 1f
+        val isAtResetPosition = abs(stylus.rotation) < 1f
 
         // 2. 如果外部强制要求动画，或者当前处于归位状态准备“落针”，则触发动画
         val shouldAnimate = animate || isAtResetPosition
@@ -178,9 +179,9 @@ class NewTonearmView @JvmOverloads constructor(
             lastAnimator?.cancel()
 
             lastAnimator = ObjectAnimator.ofFloat(
-                ivStylus,
+                stylus,
                 "rotation",
-                ivStylus?.rotation ?: 0f,
+                stylus.rotation,
                 targetRotation
             ).apply {
                 duration = 800 // 唱针落到唱片上的平滑过渡时间（毫秒）
@@ -196,7 +197,7 @@ class NewTonearmView @JvmOverloads constructor(
             // 3. 【核心保护逻辑】只有当切入动画“没有在运行”时，才允许日常的进度微调
             // 这样可以完美防止 Activity 的高频定时器打断正在过渡的落针动画
             if (lastAnimator?.isRunning != true) {
-                ivStylus?.rotation = targetRotation
+                stylus.rotation = targetRotation
                 ivStylusShadow?.rotation = targetRotation
             }
         }

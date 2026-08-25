@@ -21,6 +21,7 @@ JAVA_HOME=<JDK17> bash gradlew :app:assembleDebug  # 构建 Debug
 JAVA_HOME=<JDK17> bash gradlew :app:assembleRelease  # 构建 Release（默认 debug 签名）
 JAVA_HOME=<JDK17> bash gradlew :app:greendao       # 重新生成 GreenDAO 代码
 JAVA_HOME=<JDK17> bash gradlew :app:installDebug   # 安装到已连接设备
+bash verify.sh                                     # 全量验证（构建 + lint，见“验证”节）
 ```
 
 ## 目录结构（`app/src/main/java/com/yibao/music/`）
@@ -68,10 +69,13 @@ JAVA_HOME=<JDK17> bash gradlew :app:installDebug   # 安装到已连接设备
 
 - 主分支 `master`，开发分支 `dev`；新建分支建议使用 `codex/` 前缀
 - commit message 用中文，沿用现有风格：`【分类】说明`，如 `【优化】...`、`【Fixed Bug】...`、`【UI】...`、`【代码优化】...`
+- 所有本地提交必须经用户人工确认后才能执行，禁止未经确认直接 `git commit`
+- 禁止自动推送远程；需要推送时提醒用户，由用户决定是否执行 `git push`
 
 ## 验证
 
-- 仓库没有单元测试/仪器测试目录；改动后至少保证 `:app:assembleDebug` 通过
+- 全量验证命令（每次改动后必须通过）：`bash verify.sh`（等价于 `JAVA_HOME=<JDK17> bash gradlew :app:assembleDebug :app:lintDebug --console=plain`）
+- 仓库暂无单元测试/仪器测试目录；新增逻辑时优先补 JUnit/Robolectric 测试，测试就绪后把 `:app:testDebugUnitTest` 纳入 verify.sh
 - 涉及权限、通知、后台播放、锁屏的功能需在真机（Android 13+）验证
 - 发版前检查 `versionCode` / `versionName`（当前 3 / 2.0.0_20250715_sz）
 
