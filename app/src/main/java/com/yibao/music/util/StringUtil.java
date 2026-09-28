@@ -80,7 +80,7 @@ public class StringUtil {
      */
     public static String getDownAlbum(String songName, String artist) {
 
-        return Constant.MUSIC_SONG_ALBUM_ROOT + songName + ".jpg";
+        return Constant.getMusicSongAlbumRoot() + songName + ".jpg";
 
     }
 

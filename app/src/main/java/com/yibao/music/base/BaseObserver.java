@@ -32,7 +32,8 @@ public abstract class BaseObserver<T> implements Observer<T> {
     @Override
     public void onError(Throwable e) {
         // 1. 统一打印完整堆栈，方便调试
-        LogUtil.d(TAG, "请求发生错误" + e.getLocalizedMessage());
+        // 使用 LogUtil.e 避免 LogUtil.d 内部的 getStackTrace() 开销
+        LogUtil.e(TAG, "请求发生错误: " + e.getLocalizedMessage());
 
         // 2. 统一处理 HTTP 错误（如 401 跳转登录）
         if (e instanceof HttpException) {

@@ -92,11 +92,11 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
             }
         }
         if (audioBinder != null) {
-            mMusicBean = audioBinder!!.musicBean
+            mMusicBean = audioBinder?.musicBean
             setMusicInfo(mMusicBean)
             checkCurrentSongIsFavorite(mMusicBean, null, mBinding.smartisanControlBar)
-            mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder!!.isPlaying)
-            mBinding.smartisanControlBar.animatorOnResume(audioBinder!!.isPlaying)
+            mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder?.isPlaying ?: false)
+            mBinding.smartisanControlBar.animatorOnResume(audioBinder?.isPlaying ?: false)
             updateLyric()
             setDuration()
         }
@@ -152,13 +152,13 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
             LogUtil.d(TAG, clickFlag.toString())
             when (clickFlag) {
                 Constant.NUMBER_ONE -> {
-                    audioBinder!!.updateFavorite()
+                    audioBinder?.updateFavorite()
                     checkCurrentSongIsFavorite(mMusicBean, null, mBinding.smartisanControlBar)
                 }
 
-                Constant.NUMBER_TWO -> audioBinder!!.playPre()
+                Constant.NUMBER_TWO -> audioBinder?.playPre()
                 Constant.NUMBER_THREE -> switchPlayState()
-                Constant.NUMBER_FOUR -> audioBinder!!.playNext()
+                Constant.NUMBER_FOUR -> audioBinder?.playNext()
                 else -> {}
             }
         }
@@ -236,19 +236,19 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
         if (audioBinder != null) {
             setDuration()
             checkCurrentSongIsFavorite(mMusicBean, null, mBinding.smartisanControlBar)
-            mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder!!.isPlaying)
+            mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder?.isPlaying ?: false)
             updateLyric()
         }
     }
 
     override fun updateCurrentPlayProgress() {
         if (audioBinder != null) {
-            mBinding.smartisanControlBar.setSongProgress(audioBinder!!.progress)
+            mBinding.smartisanControlBar.setSongProgress(audioBinder?.progress ?: 0)
         }
     }
 
     private fun setDuration() {
-        val duration = audioBinder!!.duration
+        val duration = audioBinder?.duration ?: 0
         mBinding.smartisanControlBar.setMaxProgress(duration)
     }
 
@@ -261,7 +261,7 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
             mBinding.smartisanControlBar.setAlbumUrl(this, musicItem)
         }
         if (audioBinder != null) {
-            mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder!!.isPlaying)
+            mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder?.isPlaying ?: false)
             mBinding.smartisanControlBar.initAnimation()
         } else {
             mBinding.smartisanControlBar.visibility = View.GONE
@@ -313,8 +313,8 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
     override fun refreshBtnAndNotify(playStatus: Int) {
         when (playStatus) {
             0 -> {
-                mBinding.smartisanControlBar.animatorOnResume(audioBinder!!.isPlaying)
-                mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder!!.isPlaying)
+                mBinding.smartisanControlBar.animatorOnResume(audioBinder?.isPlaying ?: false)
+                mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder?.isPlaying ?: false)
             }
 
             1 -> {
@@ -322,7 +322,7 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
             }
 
             2 -> {
-                mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder!!.isPlaying)
+                mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder?.isPlaying ?: false)
                 mBinding.smartisanControlBar.animatorOnPause()
             }
 
@@ -331,13 +331,13 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
 
 
     private fun switchPlayState() {
-        if (audioBinder!!.isPlaying) {
-            audioBinder!!.pause()
+        if (audioBinder?.isPlaying ?: false) {
+            audioBinder?.pause()
         } else {
-            audioBinder!!.start()
+            audioBinder?.start()
         }
-        mBinding.smartisanControlBar.animatorOnResume(audioBinder!!.isPlaying)
-        mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder!!.isPlaying)
+        mBinding.smartisanControlBar.animatorOnResume(audioBinder?.isPlaying ?: false)
+        mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder?.isPlaying ?: false)
     }
 
 
@@ -377,7 +377,7 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
                             //通过集合，播放过的歌词就从集合中删除
                             val lyrBean = lyricList[lyricsFlag]
                             val content = lyrBean.content
-                            val progress = audioBinder!!.progress
+                            val progress = audioBinder?.progress ?: 0
                             val startTime = lyrBean.startTime
                             if (progress > startTime) {
                                 mBinding.smartisanControlBar.setSingerName(content)

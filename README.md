@@ -16,7 +16,7 @@
 
 ## 项目介绍
 
-[ArtisanMusicPlayer](https://github.com/1900Star/MusicPlayer-Smartisan) 仿照锤子音乐播放器写的一个本地音乐播放器，会尽可能的实现锤子音乐播放器已有的功能。
+[ArtisanMusicPlayer](https://github.com/luospp/MusicPlayer-Smartisan) 仿照锤子音乐播放器写的一个本地音乐播放器，会尽可能的实现锤子音乐播放器已有的功能。
                 也会去除一些功能，比如去除:云音乐，联网搜索，因为主要还是播放本地音乐为主。
                 同时也会增加一些个人觉得有趣的交互，比如增加了类似QQ音乐的左右滑动切换上/下一曲的交互,主界面点击ToolBar上的文字可以切换控制条样式，
                 用GreenDao实现了收藏功能，自定义歌单可以本地备份。

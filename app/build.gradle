@@ -1,6 +1,7 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.greenrobot.greendao'
 apply plugin: 'kotlin-android'
+apply plugin: 'kotlin-kapt'
 android {
 
     namespace 'com.yibao.music'
@@ -28,7 +29,7 @@ android {
 
         buildTypes {
             release {
-                proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             }
         }
         buildFeatures {
@@ -37,6 +38,17 @@ android {
         compileOptions {
             sourceCompatibility JavaVersion.VERSION_1_8
             targetCompatibility JavaVersion.VERSION_1_8
+        }
+
+        sourceSets {
+            main {
+                java {
+                    srcDirs = ['src/main/java']
+                }
+                kotlin {
+                    srcDirs = ['src/main/java']
+                }
+            }
         }
 
     }
@@ -78,6 +90,8 @@ android {
         // 百度统计
         implementation 'com.baidu.mobstat:mtj-sdk:4.0.7.6'
         // 65536
+        // Ensure Java compiles before Kotlin in mixed projects
+        kapt 'com.github.bumptech.glide:compiler:4.12.0'
         implementation 'com.android.support:multidex:1.0.3'
 
         implementation 'com.github.JessYanCoding:AndroidAutoSize:v1.2.1'

@@ -24,6 +24,9 @@ public class CountdownService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null) {
+            return START_NOT_STICKY;
+        }
         long countdownTime = intent.getLongExtra(Constant.COUNTDOWN_TIME, 0);
         mMusicTimer = new MusicTimer(countdownTime, 1000);
         mMusicTimer.start();
@@ -51,6 +54,7 @@ public class CountdownService extends Service {
 
         private void sendCloseMusicBroadcast() {
             Intent intent = new Intent(Constant.ACTION_MUSIC);
+            intent.setPackage(getPackageName());
             intent.putExtra(Constant.NOTIFY_BUTTON_ID, Constant.COUNTDOWN_FINISH);
             sendBroadcast(intent);
         }

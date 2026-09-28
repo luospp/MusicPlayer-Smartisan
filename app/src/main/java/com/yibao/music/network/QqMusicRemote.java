@@ -20,6 +20,8 @@ import com.yibao.music.util.RxBus;
 import com.yibao.music.util.ToastUtil;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
 import io.reactivex.ObservableSource;
@@ -35,16 +37,27 @@ import io.reactivex.schedulers.Schedulers;
  */
 public class QqMusicRemote {
     private static final String TAG = "====" + QqMusicRemote.class.getSimpleName() + "    ";
+    // 失败计数器，连续失败超过阈值时暂停请求
+    private static final AtomicInteger sFailureCount = new AtomicInteger(0);
+    private static final int MAX_FAILURES = 3;
+    private static volatile boolean sCircuitBreakerOpen = false;
 
     // 歌曲专辑图片
     public static void getSongImg(Context context, String songName, OnImagePathListener listener) {
+        if (sCircuitBreakerOpen) {
+            LogUtil.d(TAG, "Circuit breaker open, skipping getSongImg for: " + songName);
+            listener.imageUrl(null);
+            return;
+        }
         String albumUrlHead = "http://y.gtimg.cn/music/photo_new/T002R500x500M000";
         RetrofitHelper.getMusicService().search(songName, 1)
                 .subscribeOn(Schedulers.io())
+                .delay(300, TimeUnit.MILLISECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new BaseObserver<SearchSong>() {
                     @Override
                     public void onSuccess(SearchSong searchSong) {
+                        sFailureCount.set(0);
                         String albumMid = searchSong.getData().getSong().getList().get(0).getAlbummid();
                         String imgUrl = albumUrlHead + albumMid + ".jpg";
                         // 将专辑图片保存到本地
@@ -56,8 +69,12 @@ public class QqMusicRemote {
 
                     @Override
                     public void onFailure(Throwable e) {
-                        super.onError(e);
                         LogUtil.d(TAG, e.getMessage());
+                        int failures = sFailureCount.incrementAndGet();
+                        if (failures >= MAX_FAILURES) {
+                            sCircuitBreakerOpen = true;
+                            LogUtil.d(TAG, "Too many failures, opening circuit breaker");
+                        }
                         listener.imageUrl(null);
                     }
                 });
@@ -65,12 +82,19 @@ public class QqMusicRemote {
     }
 
     public static void getArtistImg(Context context, String artist, OnImagePathListener listener) {
+        if (sCircuitBreakerOpen) {
+            LogUtil.d(TAG, "Circuit breaker open, skipping getArtistImg for: " + artist);
+            listener.imageUrl(null);
+            return;
+        }
         RetrofitHelper.getSingerMusicService().getSingerImg(artist)
                 .subscribeOn(Schedulers.io())
+                .delay(300, TimeUnit.MILLISECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new BaseObserver<SingerImg>() {
                     @Override
                     public void onSuccess(SingerImg singerImg) {
+                        sFailureCount.set(0);
                         String picUrl = singerImg.getResult().getArtists().get(0).getPicUrl();
 //                        String picUrl = albumUrlHead + albummid + ".jpg";
                         LogUtil.d(TAG, "请求到的歌手图片地址 " + picUrl);
@@ -80,8 +104,12 @@ public class QqMusicRemote {
 
                     @Override
                     public void onFailure(Throwable e) {
-                        super.onError(e);
                         LogUtil.d(TAG, e.getMessage());
+                        int failures = sFailureCount.incrementAndGet();
+                        if (failures >= MAX_FAILURES) {
+                            sCircuitBreakerOpen = true;
+                            LogUtil.d(TAG, "Too many failures, opening circuit breaker");
+                        }
                     }
                 });
     }
@@ -94,13 +122,20 @@ public class QqMusicRemote {
      * @param listener
      */
     public static void getAlbumImg(Context context, String key, OnImagePathListener listener) {
+        if (sCircuitBreakerOpen) {
+            LogUtil.d(TAG, "Circuit breaker open, skipping getAlbumImg for: " + key);
+            listener.imageUrl(null);
+            return;
+        }
         String albumUrlHead = "http://y.gtimg.cn/music/photo_new/T002R500x500M000";
         RetrofitHelper.getMusicService().searchAlbum(key, 1)
                 .subscribeOn(Schedulers.io())
+                .delay(300, TimeUnit.MILLISECONDS)
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new BaseObserver<Album>() {
                     @Override
                     public void onSuccess(Album album) {
+                        sFailureCount.set(0);
                         List<Album.DataBean.AlbumBean.ListBean> list = album.getData().getAlbum().getList();
                         LogUtil.d(TAG, "==== 专辑列表长度：" + list.size());
                         if (!list.isEmpty()) {
@@ -114,8 +149,13 @@ public class QqMusicRemote {
 
                     @Override
                     public void onFailure(Throwable e) {
-                        super.onError(e);
                         LogUtil.d(TAG, "专辑图片获取失败" + e.getMessage());
+                        int failures = sFailureCount.incrementAndGet();
+                        if (failures >= MAX_FAILURES) {
+                            sCircuitBreakerOpen = true;
+                            LogUtil.d(TAG, "Too many failures, opening circuit breaker");
+                        }
+                        listener.imageUrl(null);
                     }
                 });
     }
@@ -128,8 +168,13 @@ public class QqMusicRemote {
      */
 
     public static void getSongLyrics(String songName, String artist) {
+        if (sCircuitBreakerOpen) {
+            LogUtil.d(TAG, "Circuit breaker open, skipping getSongLyrics for: " + songName);
+            return;
+        }
         RetrofitHelper.getMusicService().search(songName, 1)
                 .subscribeOn(Schedulers.io())
+                .delay(300, TimeUnit.MILLISECONDS)
                 .flatMap((Function<SearchSong, Observable<OnlineSongLrc>>) searchSong -> {
                     List<SearchSong.DataBean.SongBean.ListBean> list = searchSong.getData().getSong().getList();
                     SearchSong.DataBean.SongBean.ListBean listBean = list.get(0);
@@ -139,16 +184,18 @@ public class QqMusicRemote {
                 .subscribe(new BaseObserver<OnlineSongLrc>() {
                     @Override
                     public void onSuccess(OnlineSongLrc data) {
+                        sFailureCount.set(0);
                         // 直接处理成功数据，不需要再重写 onNext
                         sendSearchLyricsResult(data, songName, artist);
                     }
 
                     @Override
                     public void onFailure(Throwable e) {
-                        // 直接处理错误，不需要再调 super 和打印日志
-                        // 基类已经打印了，这里可以显示 Toast 给用户
-//                        ToastUtil.show(context, "歌词加载失败，请稍后重试");
-
+                        int failures = sFailureCount.incrementAndGet();
+                        if (failures >= MAX_FAILURES) {
+                            sCircuitBreakerOpen = true;
+                            LogUtil.d(TAG, "Too many failures, opening circuit breaker");
+                        }
                     }
                 });
     }

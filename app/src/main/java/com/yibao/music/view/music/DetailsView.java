@@ -224,7 +224,7 @@ public class DetailsView
 //                }
                     String searchKey = (dataType == 1) ? artist : albumName;
                     QqMusicRemote.getAlbumImg(getContext(), searchKey, url -> {
-                        if (!url.isEmpty()) {
+                        if (url != null && !url.isEmpty()) {
                             imageUrl = url;
                             Glide.with(DetailsView.this.getContext()).load(url).placeholder(R.drawable.noalbumcover_220).error(R.drawable.noalbumcover_220).into(mIvArtistAlbumDetails);
                         }

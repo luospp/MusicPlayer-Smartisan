@@ -16,7 +16,7 @@ public class Constant {
      * 广播匹配
      */
     public final static String NOTIFY_BUTTON_ID = "notify_btn_id";
-    public final static String ACTION_MUSIC = "MUSIC";
+    public final static String ACTION_MUSIC = "com.yibao.music.action.MUSIC_CONTROL";
 
     /**
      * 音乐通知栏
@@ -171,7 +171,18 @@ public class Constant {
     public static String MUSIC_LYRICS_ROOT = Environment.getExternalStorageDirectory().getAbsolutePath() + "/smartisan/music/lyrics/";
 
 
-    public static String MUSIC_SONG_ALBUM_ROOT = MusicApplication.getInstance().getExternalFilesDir("songAlbum").getAbsolutePath() + "/";
+    /**
+     * 延迟获取专辑缓存目录，避免类加载时依赖 Application 实例（第三方 SDK 的 ContentProvider
+     * 可能在 Application.onCreate() 之前触发类加载，导致 NPE → ExceptionInInitializerError）。
+     */
+    private static String sSongAlbumRoot;
+    public static String getMusicSongAlbumRoot() {
+        if (sSongAlbumRoot == null) {
+            java.io.File dir = MusicApplication.getInstance().getExternalFilesDir("songAlbum");
+            sSongAlbumRoot = (dir != null ? dir.getAbsolutePath() : ".") + "/";
+        }
+        return sSongAlbumRoot;
+    }
     public static String MUSIC_ALBUM_ROOT = Environment.getExternalStorageDirectory().getAbsolutePath() + "/smartisan/music/album/";
     public static String MUSIC_ARTIST_IMG_ROOT = Environment.getExternalStorageDirectory().getAbsolutePath() + "/smartisan/music/artistImage/";
     static final String FAVORITE_FILE = Environment.getExternalStorageDirectory().getAbsolutePath() + "/smartisan/music/favorite.txt/";

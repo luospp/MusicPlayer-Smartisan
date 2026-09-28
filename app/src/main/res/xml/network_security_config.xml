@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- 仅允许 QQ 音乐 API 和歌词接口的明文流量（部分旧接口不支持 HTTPS） -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">c.y.qq.com</domain>
+        <domain includeSubdomains="true">y.gtimg.cn</domain>
+        <domain includeSubdomains="true">u.y.qq.com</domain>
+    </domain-config>
+</network-security-config>

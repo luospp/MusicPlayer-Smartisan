@@ -50,7 +50,7 @@
     java.lang.Object readResolve();
 }
 # 实体类
--keep class com.yibao.biggirl.model.** { *; }
+-keep class com.yibao.music.model.** { *; }
 #不混淆资源类
 -keep class **.R$* {
  *;
@@ -139,3 +139,10 @@ public static java.lang.String TABLENAME;
 -keep class org.jsoup.**{*;}
 #oaid
 -keep class com.bun.miitmdid.core.** {*;}
+
+# ViewBinding inflate/bind 方法（用于反射调用）
+-keepclassmembers class * implements androidx.viewbinding.ViewBinding {
+    public static *** inflate(android.view.LayoutInflater);
+    public static *** inflate(android.view.LayoutInflater, android.view.ViewGroup, boolean);
+    public static *** bind(android.view.View);
+}

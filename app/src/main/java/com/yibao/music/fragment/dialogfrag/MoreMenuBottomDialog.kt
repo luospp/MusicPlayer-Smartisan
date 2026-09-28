@@ -92,13 +92,14 @@ class MoreMenuBottomDialog {
     }
 
 
-    companion object {
-        private var musicDao: MusicBeanDao? = null
-        private var mMusicBean: MusicBean? = null
-        private var mMusicPosition = 0
-        private var mIsNeedScore = false
-        private var mIsNeedSetTime = false
+    // 实例字段取代 companion object 静态字段，避免进程重建后数据丢失
+    private var musicDao: MusicBeanDao? = null
+    private var mMusicBean: MusicBean? = null
+    private var mMusicPosition = 0
+    private var mIsNeedScore = false
+    private var mIsNeedSetTime = false
 
+    companion object {
         @JvmStatic
         fun newInstance(
             musicBean: MusicBean?,
@@ -106,12 +107,13 @@ class MoreMenuBottomDialog {
             isNeedScore: Boolean,
             isNeedSetTime: Boolean
         ): MoreMenuBottomDialog {
-            mMusicBean = musicBean
-            mMusicPosition = musicPosition
-            mIsNeedScore = isNeedScore
-            mIsNeedSetTime = isNeedSetTime
-            musicDao = MusicApplication.getInstance().musicDao
-            return MoreMenuBottomDialog()
+            val dialog = MoreMenuBottomDialog()
+            dialog.mMusicBean = musicBean
+            dialog.mMusicPosition = musicPosition
+            dialog.mIsNeedScore = isNeedScore
+            dialog.mIsNeedSetTime = isNeedSetTime
+            dialog.musicDao = MusicApplication.getInstance().musicDao
+            return dialog
         }
     }
 }

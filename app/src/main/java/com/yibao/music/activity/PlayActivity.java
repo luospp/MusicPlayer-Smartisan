@@ -189,12 +189,12 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
         updatePlayBtnStatus();
         // 设置当前歌词
         mLyricList = LyricsUtil.getLyricList(musicBean);
-        String msg = mLyricList.size() > 1 ? Constant.MUSIC_LYRIC_OK : Constant.PURE_MUSIC;
+        String msg = (mLyricList != null ? mLyricList.size() : 0) > 1 ? Constant.MUSIC_LYRIC_OK : Constant.PURE_MUSIC;
         mBinding.lyricsView.setLrcFile(mLyricList, msg);
         if (isShowLyrics) {
             startRollPlayLyrics(mBinding.lyricsView);
             closeLyricsView();
-            mBinding.groupBrightDelete.setVisibility(mLyricList.size() > 2 ? View.VISIBLE : View.INVISIBLE);
+            mBinding.groupBrightDelete.setVisibility((mLyricList != null ? mLyricList.size() : 0) > 2 ? View.VISIBLE : View.INVISIBLE);
 
         }
     }
@@ -460,7 +460,7 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
         mBinding.ivFavoriteList.setOnClickListener(this);
         mBinding.lyricsView.setOnClickListener(this);
         mBinding.lyricsView.setOnLongClickListener(v -> {
-            if (mLyricList.size() == 1) {
+            if ((mLyricList != null ? mLyricList.size() : 0) == 1) {
                 startSearchLyricsActivity();
             }
             return false;
@@ -540,7 +540,7 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
             boolean lyricIsExists = LyricsUtil.checkLyricFile(StringUtil.getSongName(mCurrentMusicInfo.getTitle()), StringUtil.getArtist(mCurrentMusicInfo.getArtist()));
             if (lyricIsExists) {
                 mLyricList = LyricsUtil.getLyricList(mCurrentMusicInfo);
-                String msg = mLyricList.size() > 1 ? Constant.MUSIC_LYRIC_OK : Constant.PURE_MUSIC;
+                String msg = (mLyricList != null ? mLyricList.size() : 0) > 1 ? Constant.MUSIC_LYRIC_OK : Constant.PURE_MUSIC;
 
                 mBinding.lyricsView.setLrcFile(mLyricList, msg);
                 // 开始滚动歌词
@@ -554,7 +554,7 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
         }
         mBinding.groupLyrics.setVisibility(isShowLyrics ? View.GONE : View.VISIBLE);
         mBinding.groupStylus.setVisibility(isShowLyrics ? View.VISIBLE : View.GONE);
-        mBinding.groupBrightDelete.setVisibility(isShowLyrics ? View.INVISIBLE : mLyricList.size() > 2 ? View.VISIBLE : View.INVISIBLE);
+        mBinding.groupBrightDelete.setVisibility(isShowLyrics ? View.INVISIBLE : (mLyricList != null ? mLyricList.size() : 0) > 2 ? View.VISIBLE : View.INVISIBLE);
         mBinding.ivLyricsSwitch.setBackgroundResource(isShowLyrics ? R.drawable.music_lrc_close : R.drawable.music_lrc_open);
         AnimationDrawable animation = (AnimationDrawable) mBinding.ivLyricsSwitch.getBackground();
         animation.start();
@@ -601,7 +601,7 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
      */
     public void closeLyricsView() {
         disposableLyricsView();
-        if (mLyricList.size() < Constant.NUMBER_TWO) {
+        if ((mLyricList != null ? mLyricList.size() : 0) < Constant.NUMBER_TWO) {
             if (mCloseLyrDisposable == null) {
                 mCloseLyrDisposable = Observable.timer(5, TimeUnit.SECONDS)
                         .subscribeOn(Schedulers.io())

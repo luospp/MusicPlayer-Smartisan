@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
     <external-path path="Android/data/com.yibao.music/" name="files_root" />
-    <external-path path="." name="external_storage_root" />
+    <external-files-path path="crash/" name="crash" />
+    <external-files-path path="songAlbum/" name="song_album" />
 </paths>

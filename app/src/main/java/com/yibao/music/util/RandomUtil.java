@@ -19,7 +19,7 @@ public class RandomUtil {
     public static String getRandomUrl(boolean picUrlFlag) {
         Random random = new Random();
         int picUrlLength = Api.picUrlArr.length;
-        int position = random.nextInt(picUrlLength) + 1;
+        int position = random.nextInt(picUrlLength);
 
 //        return picUrlFlag ? getUnsplashUrl(picUrlLength).get(position) : Api.picUrlArr[position >= picUrlLength ? picUrlLength - 1 : position];
         return Api.picUrlArr[position >= picUrlLength ? picUrlLength - 1 : position];

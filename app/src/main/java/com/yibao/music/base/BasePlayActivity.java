@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import androidx.core.content.ContextCompat;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.os.Bundle;
@@ -64,7 +65,8 @@ public abstract class BasePlayActivity extends BaseTransitionActivity implements
         audioBinder = MainActivity.getAudioBinder();
         PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
         if (powerManager != null) {
-            mWakeLock = powerManager.newWakeLock(PowerManager.FULL_WAKE_LOCK, "Music  Lock");
+            // @Deprecated, 应迁移到 window.addFlags(FLAG_KEEP_SCREEN_ON)
+            mWakeLock = powerManager.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK, "Music  Lock");
         }
         mAudioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         if (mAudioManager != null) {
@@ -160,7 +162,7 @@ public abstract class BasePlayActivity extends BaseTransitionActivity implements
         mVolumeReceiver = new VolumeReceiver();
         IntentFilter filter = new IntentFilter();
         filter.addAction("android.media.VOLUME_CHANGED_ACTION");
-        registerReceiver(mVolumeReceiver, filter);
+        ContextCompat.registerReceiver(this, mVolumeReceiver, filter, ContextCompat.RECEIVER_EXPORTED);
     }
     // 音量监听广播
 

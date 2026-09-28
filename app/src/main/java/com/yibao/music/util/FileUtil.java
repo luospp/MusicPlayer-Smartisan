@@ -57,7 +57,7 @@ public class FileUtil {
     private static boolean albumFileExists(int imageType, String songName, String artist) {
 
         String albumPath = imageType == 1
-                ? Constant.MUSIC_SONG_ALBUM_ROOT + songName + ".jpg" : imageType == 2
+                ? Constant.getMusicSongAlbumRoot() + songName + ".jpg" : imageType == 2
                 ? Constant.MUSIC_ARTIST_IMG_ROOT + artist + ".jpg" : Constant.MUSIC_ALBUM_ROOT + artist + ".jpg";
         File file = new File(albumPath);
         return file.exists();

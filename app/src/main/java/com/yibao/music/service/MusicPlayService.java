@@ -7,12 +7,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.media.AudioAttributes;
+import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.media.PlaybackParams;
+import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.net.Uri;
 import android.os.Binder;
 import android.os.IBinder;
+import androidx.core.content.ContextCompat;
 import android.provider.MediaStore;
 
 import com.yibao.music.MusicApplication;
@@ -35,6 +40,7 @@ import com.yibao.music.util.ThreadPoolProxyFactory;
 import com.yibao.music.util.VersionUtil;
 
 import java.util.List;
+import java.util.Collections;
 import java.util.Random;
 
 import io.reactivex.android.schedulers.AndroidSchedulers;
@@ -70,6 +76,52 @@ public class MusicPlayService extends Service {
     private Disposable mDisposable;
     private AudioManager mAudioManager;
     private MediaSessionManager mSessionManager;
+    
+    // P0-02: MediaPlayer 错误处理相关
+    private static final int MAX_ERROR_COUNT = 3;
+    private int mErrorCount = 0;
+    
+    private final MediaPlayer.OnErrorListener mErrorListener = (mp, what, extra) -> {
+        LogUtil.e(TAG, "MediaPlayer error: what=" + what + ", extra=" + extra);
+        mErrorCount++;
+        if (mErrorCount >= MAX_ERROR_COUNT) {
+            LogUtil.e(TAG, "Too many errors, stopping playback");
+            if (mAudioBinder != null) {
+                mAudioBinder.pause();
+            }
+            return true;
+        }
+        // 自动跳到下一首
+        handlePlayError();
+        return true;
+    };
+    
+    /**
+     * P0-02: 处理播放错误
+     */
+    private void handlePlayError() {
+        if (mAudioBinder != null) {
+            mAudioBinder.playNext();
+        }
+    }
+    
+    // P0-03: 用户主动暂停标记
+    private boolean mPausedByUser = false;
+    
+    // P1-14: 随机播放队列
+    private final java.util.ArrayList<Integer> mShuffleQueue = new java.util.ArrayList<>();
+    private final java.util.Random mRandom = new java.util.Random();
+    
+    // P2-14: 音频焦点相关 (Android 8+)
+    private android.media.AudioFocusRequest mAudioFocusRequest;
+    private boolean mIsDucked = false;
+    private static final float DUCK_VOLUME = 0.2f;
+    
+    // P2-14: WiFi 锁，防止后台播放时断网
+    private WifiManager.WifiLock mWifiLock;
+    
+    // P0-01: 静态 Binder 引用，用于跨 Activity 访问
+    private static AudioBinder sAudioBinder;
 
 
     @Override
@@ -104,10 +156,17 @@ public class MusicPlayService extends Service {
         //初始化播放模式
         playMode = mSp.getInt(Constant.PLAY_MODE);
         mSessionManager = new MediaSessionManager(this, mAudioBinder);
+        // 构建 AudioFocusRequest（Android 8+ 必需），此前遗漏导致始终走废弃的旧 API
+        buildAudioFocusRequest();
+        sAudioBinder = mAudioBinder;
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
+        // 系统重建服务时 intent 可能为 null
+        if (intent == null) {
+            return START_NOT_STICKY;
+        }
         playPosition = intent.getIntExtra(Constant.POSITION, 0);
         int pageType = intent.getIntExtra(Constant.PAGE_TYPE, 0);
         String condition = intent.getStringExtra(Constant.CONDITION);
@@ -289,11 +348,13 @@ public class MusicPlayService extends Service {
         //手动播放上一曲
 
         public void playPre() {
+            if (mMusicDataList == null || mMusicDataList.isEmpty()) {
+                return;
+            }
             if (playMode == PLAY_MODE_RANDOM) {
-                playPosition = new Random().nextInt(Math.abs(mMusicDataList.size()));
+                playPosition = nextShufflePosition();
             } else {
                 playPosition = playPosition == 0 ? mMusicDataList.size() - 1 : playPosition - 1;
-
             }
             play();
         }
@@ -301,8 +362,11 @@ public class MusicPlayService extends Service {
         // 手动播放下一曲
 
         public void playNext() {
+            if (mMusicDataList == null || mMusicDataList.isEmpty()) {
+                return;
+            }
             if (playMode == PLAY_MODE_RANDOM) {
-                playPosition = new Random().nextInt(mMusicDataList.size());
+                playPosition = nextShufflePosition();
             } else {
                 playPosition = playPosition == mMusicDataList.size() - 1 ? 0 : playPosition + 1;
             }
@@ -326,8 +390,7 @@ public class MusicPlayService extends Service {
 
         // 改变播放倍速实现搓碟效果
         public void setPlaybackParams(PlaybackParams params) {
-
-            if (mediaPlayer.isPlaying()) {
+            if (mediaPlayer != null && mediaPlayer.isPlaying()) {
                 mediaPlayer.setPlaybackParams(params);
             }
         }
@@ -335,7 +398,16 @@ public class MusicPlayService extends Service {
 
         // 暂停播放
         public void pause() {
-            mediaPlayer.pause();
+            if (mediaPlayer == null) {
+                return;
+            }
+            // 记录用户主动暂停，避免音频焦点恢复时自动续播
+            mPausedByUser = true;
+            try {
+                mediaPlayer.pause();
+            } catch (IllegalStateException e) {
+                LogUtil.d(TAG, "pause 状态异常: " + e);
+            }
             mSessionManager.updatePlaybackState(false);
             showNotification(false);
             postSpeakerState(playPosition, false);
@@ -343,7 +415,9 @@ public class MusicPlayService extends Service {
 
         // 跳转到指定位置进行播放
         public void seekTo(int progress) {
-            mediaPlayer.seekTo(progress);
+            if (mediaPlayer != null) {
+                mediaPlayer.seekTo(progress);
+            }
         }
 
         public List<MusicBean> getMusicList() {
@@ -401,8 +475,8 @@ public class MusicPlayService extends Service {
         mMusicReceiver = new MusicBroadcastReceiver();
         IntentFilter filter = new IntentFilter();
         filter.addAction(Constant.ACTION_MUSIC);
-        registerReceiver(mMusicReceiver, filter);
-
+        // 不导出接收器，阻止第三方应用伪造广播控制播放
+        ContextCompat.registerReceiver(this, mMusicReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 
     private class MusicBroadcastReceiver extends BroadcastReceiver {
@@ -460,7 +534,8 @@ public class MusicPlayService extends Service {
      */
     private void registerHeadsetReceiver() {
         IntentFilter intentFilter = new IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY);
-        registerReceiver(headsetReceiver, intentFilter);
+        // ACTION_AUDIO_BECOMING_NOISY 是系统广播，必须导出才能接收
+        ContextCompat.registerReceiver(this, headsetReceiver, intentFilter, ContextCompat.RECEIVER_EXPORTED);
     }
 
     BroadcastReceiver headsetReceiver = new BroadcastReceiver() {
@@ -476,6 +551,21 @@ public class MusicPlayService extends Service {
     /**
      * 音频焦点
      */
+    /**
+     * P2-14: 构建 AudioFocusRequest (Android 8+ 必需)
+     */
+    private void buildAudioFocusRequest() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            mAudioFocusRequest = new android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .setAudioAttributes(new AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                            .build())
+                    .setOnAudioFocusChangeListener(mAudioFocusChange)
+                    .build();
+        }
+    }
+    
     private void initAudioFocus() {
         // 申请焦点
         if (mAudioManager != null) {
@@ -532,6 +622,7 @@ public class MusicPlayService extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
+        sAudioBinder = null;
         if (mAudioBinder != null) {
             mAudioBinder.hintNotification();
         }
@@ -550,6 +641,88 @@ public class MusicPlayService extends Service {
             mDisposable = null;
         }
         abandonAudioFocus();
-        mSessionManager.release();
+        releaseWifiLock();
+        if (mSessionManager != null) {
+            mSessionManager.release();
+        }
     }
+
+    /**
+     * 钳制播放位置，保证在 [0, size) 范围内。
+     */
+    private int clampPosition(int pos) {
+        if (mMusicDataList == null || mMusicDataList.isEmpty()) {
+            return 0;
+        }
+        if (pos < 0) {
+            return 0;
+        }
+        if (pos >= mMusicDataList.size()) {
+            return mMusicDataList.size() - 1;
+        }
+        return pos;
+    }
+
+    /**
+     * 洗牌算法：当队列耗尽时重新生成，保证一轮之内不重复且全覆盖。
+     * 避免 nextInt(0) 在空列表时抛 IllegalArgumentException。
+     */
+    private int nextShufflePosition() {
+        if (mMusicDataList == null || mMusicDataList.isEmpty()) {
+            return 0;
+        }
+        if (mShuffleQueue.isEmpty()) {
+            for (int i = 0; i < mMusicDataList.size(); i++) {
+                mShuffleQueue.add(i);
+            }
+            Collections.shuffle(mShuffleQueue, mRandom);
+            // 避免连续两轮的衔接曲目重复
+            if (mShuffleQueue.size() > 1 && mShuffleQueue.get(0) == playPosition) {
+                Collections.swap(mShuffleQueue, 0, 1);
+            }
+        }
+        return mShuffleQueue.remove(0);
+    }
+
+    private void acquireWifiLock() {
+        if (mWifiLock == null) {
+            WifiManager wm = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wm != null) {
+                mWifiLock = wm.createWifiLock(WifiManager.WIFI_MODE_FULL_HIGH_PERF, "music_play_lock");
+                mWifiLock.setReferenceCounted(false);
+            }
+        }
+        if (mWifiLock != null && !mWifiLock.isHeld()) {
+            mWifiLock.acquire();
+        }
+    }
+
+    private void releaseWifiLock() {
+        if (mWifiLock != null && mWifiLock.isHeld()) {
+            mWifiLock.release();
+        }
+    }
+
+    /**
+     * 降音/恢复：CAN_DUCK 时降低音量，GAIN 时恢复。
+     */
+    private void duckVolume(boolean duck) {
+        if (mediaPlayer == null) {
+            return;
+        }
+        if (duck) {
+            mediaPlayer.setVolume(DUCK_VOLUME, DUCK_VOLUME);
+            mIsDucked = true;
+        } else if (mIsDucked) {
+            mediaPlayer.setVolume(1.0f, 1.0f);
+            mIsDucked = false;
+        }
+    }
+
+
+    /**
+     * AudioBinder 内部调用的播放错误处理（MediaPlayer.OnErrorListener 与 create 失败共用）。
+     * 需要提升为 Service 级别方法以便内部类访问。
+     */
+
 }

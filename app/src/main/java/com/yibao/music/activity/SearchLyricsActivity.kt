@@ -56,8 +56,8 @@ class SearchLyricsActivity : BaseBindingActivity<ActivitySearchLyricsBinding>() 
         mBinding.vp2SearchLyrics.registerOnPageChangeCallback(object : OnPageChangeCallback() {
             override fun onPageSelected(position: Int) {
                 super.onPageSelected(position)
-                val searchLyricsBean = mLyricsBeanList[position]
-                mSongMid = searchLyricsBean.songMid
+                val searchLyricsBean = if (position >= 0 && position < mLyricsBeanList.size) mLyricsBeanList[position] else null
+                mSongMid = searchLyricsBean?.songMid ?: ""
                 LogUtil.d(TAG, mSongMid)
                 val lyricsIndex = position + 1
                 mBinding.tvLyricsPageIndex.text = lyricsIndex.toString()
@@ -68,8 +68,8 @@ class SearchLyricsActivity : BaseBindingActivity<ActivitySearchLyricsBinding>() 
     override fun onResume() {
         super.onResume()
         searchViewModel.lrcViewModel.observe(this) { lyricsList: List<SearchLyricsBean>? ->
-            val animation = mBinding.ivSearchLyricsLoading.background as AnimationDrawable
-            animation.stop()
+            val animation = mBinding.ivSearchLyricsLoading.background as? AnimationDrawable
+            animation?.stop()
             if (!lyricsList.isNullOrEmpty()) {
                 mLyricsBeanList.clear()
                 mLyricsBeanList.addAll(lyricsList)
@@ -85,7 +85,7 @@ class SearchLyricsActivity : BaseBindingActivity<ActivitySearchLyricsBinding>() 
 
     private fun showProgress() {
         mBinding.ivSearchLyricsLoading.visibility = View.VISIBLE
-        val animation = mBinding.ivSearchLyricsLoading.background as AnimationDrawable
+        val animation = mBinding.ivSearchLyricsLoading.background as? AnimationDrawable ?: return
         animation.start()
     }
 

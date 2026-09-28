@@ -37,8 +37,13 @@ public class CrashHandler
     private Thread.UncaughtExceptionHandler mDefaultCrashHandler;
 
 
-    public static CrashHandler getInstance() {
-        return new CrashHandler();
+    private static CrashHandler sInstance;
+    
+    public static synchronized CrashHandler getInstance() {
+        if (sInstance == null) {
+            sInstance = new CrashHandler();
+        }
+        return sInstance;
     }
 
     public void init() {
@@ -83,7 +88,7 @@ public class CrashHandler
         }
 
         long current = System.currentTimeMillis();
-        String time = new SimpleDateFormat("yyyy-MM-dd HH:mm:sss", Locale.getDefault()).format(new Date(current));
+        String time = new SimpleDateFormat("yyyy-MM-dd_HH-mm-ss_SSS", Locale.getDefault()).format(new Date(current));
 
         File exceptionFile;
         if (VersionUtil.checkAndroidVersionQ()) {

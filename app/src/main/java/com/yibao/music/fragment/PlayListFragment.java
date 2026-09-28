@@ -45,12 +45,12 @@ public class PlayListFragment extends BaseMusicFragmentDev<PlayListFragmentBindi
 
     private boolean isShowDetailsView = false;
 
-    private static String mSongName;
+    private String mSongName;
 
 
-    private static ArrayList<String> mArrayLisOpenDetail;
+    private ArrayList<String> mArrayLisOpenDetail;
     private String mPlayListTitle;
-    private static boolean isFromPlayListActivity;
+    private boolean isFromPlayListActivity;
 
 
     private final PlayListViewModel mViewModel = new PlayListViewModel();
@@ -205,10 +205,11 @@ public class PlayListFragment extends BaseMusicFragmentDev<PlayListFragmentBindi
      * @return s
      */
     public static PlayListFragment newInstance(String songName, ArrayList<String> arrayList, boolean formPlayListActivity) {
-        isFromPlayListActivity = formPlayListActivity;
-        mSongName = songName;
-        mArrayLisOpenDetail = arrayList;
-        return new PlayListFragment();
+        PlayListFragment fragment = new PlayListFragment();
+        fragment.isFromPlayListActivity = formPlayListActivity;
+        fragment.mSongName = songName;
+        fragment.mArrayLisOpenDetail = arrayList;
+        return fragment;
     }
 
     @Override

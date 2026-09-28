@@ -56,7 +56,7 @@ class ScannerConfigDialog : BaseBindingDialog<ScannerConfigDialogBinding>(), Vie
         if (id == R.id.tv_scanner_cancel) {
             // 自动扫描，点击取消扫描音乐
             if (isAutoFlag) {
-                mListener.scanMusic(true)
+                getScanListener()?.scanMusic(true)
             }
             dismiss()
         } else if (id == R.id.tv_scanner_continue) {
@@ -65,7 +65,7 @@ class ScannerConfigDialog : BaseBindingDialog<ScannerConfigDialogBinding>(), Vie
                 SpUtils.ContentValue(Constant.MUSIC_DURATION_FLAG, mBinding.cbDuration.isChecked)
             )
             if (isAutoFlag) {
-                mListener.scanMusic(true)
+                getScanListener()?.scanMusic(true)
             } else {
                 val intent = Intent(activity, MusicActivity::class.java)
                 intent.putExtra(Constant.SCANNER_MEDIA, true)
@@ -77,7 +77,6 @@ class ScannerConfigDialog : BaseBindingDialog<ScannerConfigDialogBinding>(), Vie
 
     companion object {
         private val TAG = " ==== " + ScannerConfigDialog::class.java.simpleName + "  "
-        private lateinit var mListener: OnScanConfigListener
 
         /**
          * @param loadFlag true 自动扫描 、 false 手动扫描
@@ -85,12 +84,22 @@ class ScannerConfigDialog : BaseBindingDialog<ScannerConfigDialogBinding>(), Vie
          */
         @JvmStatic
         fun newInstance(loadFlag: Boolean, listener: OnScanConfigListener): ScannerConfigDialog {
-            mListener = listener
             val dialog = ScannerConfigDialog()
             val bundle = Bundle()
             bundle.putBoolean(Constant.LOAD_FLAG, loadFlag)
             dialog.arguments = bundle
             return dialog
         }
+    }
+
+    /**
+     * 通过 parentFragment 或 Activity 查找回调接口，避免静态字段在进程重建后丢失。
+     */
+    private fun getScanListener(): OnScanConfigListener? {
+        val parent = parentFragment
+        if (parent is OnScanConfigListener) return parent
+        val act = activity
+        if (act is OnScanConfigListener) return act
+        return null
     }
 }

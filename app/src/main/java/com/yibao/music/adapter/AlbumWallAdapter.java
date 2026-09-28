@@ -48,7 +48,7 @@ public class AlbumWallAdapter extends BaseBindingAdapter<AlbumInfo> {
                 if (!isSuccess) {
                     try {
                         QqMusicRemote.getAlbumImg(mContext, info.getAlbumName(), url -> {
-                            if (!url.isEmpty()) {
+                            if (url != null && !url.isEmpty()) {
                                 Glide.with(mContext).load(url)
                                         .placeholder(R.drawable.noalbumcover_220)
                                         .error(R.drawable.noalbumcover_220)

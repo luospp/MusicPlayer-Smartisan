@@ -55,7 +55,7 @@ class MusicActivity : BaseActivity(), OnScanConfigListener {
         if (VersionUtil.checkAndroidVersionS()) {
             requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_AUDIO)
         } else {
-            requestPermissionLauncher.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
+            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
     }
 
@@ -67,7 +67,10 @@ class MusicActivity : BaseActivity(), OnScanConfigListener {
                 loadMusicData()
             }
         } else {
-            if (checkFlag == 1) {
+            if (shouldShowRequestPermissionRationale(Manifest.permission.READ_EXTERNAL_STORAGE)
+                || shouldShowRequestPermissionRationale(Manifest.permission.READ_MEDIA_AUDIO)) {
+                againPermission(R.string.storage_permission)
+            } else if (checkFlag == 1) {
                 checkFlag = 2
                 initPermission()
             } else {

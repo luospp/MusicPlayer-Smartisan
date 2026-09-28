@@ -63,7 +63,6 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
         setContentView(mBinding.root)
         initPermission()
         initNotifyPermission()
-        initLocationPermission()
         initData()
         initMusicConfig()
         initListener()
@@ -153,7 +152,7 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
                     if (audioBinder != null) {
                         when (clickFlag) {
                             Constant.NUMBER_ONE -> {
-                                audioBinder!!.updateFavorite()
+                                audioBinder?.updateFavorite()
                                 checkCurrentSongIsFavorite(
                                     mCurrentMusicBean,
                                     mBinding.qqControlBar,
@@ -163,12 +162,12 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
 
                             Constant.NUMBER_TWO -> {
                                 clearDisposableProgress()
-                                audioBinder!!.playPre()
+                                audioBinder?.playPre()
                             }
 
                             Constant.NUMBER_FOUR -> {
                                 clearDisposableProgress()
-                                audioBinder!!.playNext()
+                                audioBinder?.playNext()
                             }
 
                             else -> {}
@@ -189,7 +188,7 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
                     when (clickFlag) {
                         Constant.NUMBER_ONE -> switchPlayState()
                         Constant.NUMBER_TWO -> if (audioBinder != null) {
-                            audioBinder!!.updateFavorite()
+                            audioBinder?.updateFavorite()
                             checkCurrentSongIsFavorite(
                                 mCurrentMusicBean,
                                 mBinding.qqControlBar,
@@ -213,10 +212,10 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
                 val position = mSps.getInt(Constant.MUSIC_POSITION)
                 if (position > pagerPosition) {
                     clearDisposableProgress()
-                    audioBinder!!.playPre()
+                    audioBinder?.playPre()
                 } else if (position < pagerPosition) {
                     clearDisposableProgress()
-                    audioBinder!!.playNext()
+                    audioBinder?.playNext()
                 }
             }
         })
@@ -293,17 +292,17 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
             else -> {
                 if (audioBinder == null) {
                     ToastUtil.showNoMusic(this)
-                } else if (audioBinder!!.isPlaying) {
+                } else if (audioBinder?.isPlaying ?: false) {
                     // 当前播放  暂停
-                    audioBinder!!.pause()
+                    audioBinder?.pause()
                     clearDisposableProgress()
-                } else if (!audioBinder!!.isPlaying) {
+                } else if (!(audioBinder?.isPlaying ?: false)) {
                     // 当前暂停  播放
-                    audioBinder!!.start()
+                    audioBinder?.start()
                     upDataPlayProgress()
                 }
                 if (audioBinder != null) {
-                    mBinding.smartisanControlBar.animatorOnResume(audioBinder!!.isPlaying)
+                    mBinding.smartisanControlBar.animatorOnResume(audioBinder?.isPlaying ?: false)
                 }
                 //更新播放状态按钮
                 updatePlayBtnStatus()
@@ -400,7 +399,7 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
      * 切换音乐控制面板的样式
      */
     private fun switchMusicControlBar() {
-        if (audioBinder != null && audioBinder!!.isPlaying) {
+        if (audioBinder != null && audioBinder?.isPlaying ?: false) {
             if (isShowQqBar) {
                 mBinding.qqControlBar.visibility = View.INVISIBLE
                 mBinding.smartisanControlBar.visibility = View.VISIBLE
@@ -437,9 +436,9 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
                         val lyrBean =
                             lyricList[if (lyricsPlayPosition == lyricList.size || lyricsPlayPosition > lyricList.size) lyricList.size - 1 else lyricsPlayPosition]
                         val lyrics = lyrBean.content
-                        val progress = audioBinder!!.progress
+                        val progress = audioBinder?.progress ?: 0
                         val startTime = lyrBean.startTime
-                        val musicList = audioBinder!!.musicList
+                        val musicList = audioBinder?.musicList
                         if (musicList != null && progress > startTime) {
                             LogUtil.d(TAG, "歌词List的长度    ==  " + lyricList.size)
                             if (mCurrentPosition < musicList.size) {
@@ -463,7 +462,7 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
     }
 
     private fun setDuration() {
-        val duration = audioBinder!!.duration
+        val duration = audioBinder?.duration ?: 0
         mBinding.smartisanControlBar.setMaxProgress(duration)
         mBinding.qqControlBar.setMaxProgress(duration)
     }
@@ -499,11 +498,11 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
 
     override fun updateCurrentPlayProgress() {
         if (audioBinder != null) {
-            if (audioBinder!!.isPlaying) {
+            if (audioBinder?.isPlaying ?: false) {
                 if (isShowQqBar) {
-                    mBinding.qqControlBar.setProgress(audioBinder!!.progress)
+                    mBinding.qqControlBar.setProgress(audioBinder?.progress ?: 0)
                 } else {
-                    mBinding.smartisanControlBar.setSongProgress(audioBinder!!.progress)
+                    mBinding.smartisanControlBar.setSongProgress(audioBinder?.progress ?: 0)
                 }
 
             }
@@ -513,8 +512,8 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
     private fun updatePlayBtnStatus() {
         //根据当前播放状态设置图片
         if (audioBinder != null) {
-            mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder!!.isPlaying)
-            mBinding.qqControlBar.updatePlayButtonState(audioBinder!!.isPlaying)
+            mBinding.smartisanControlBar.updatePlayBtnStatus(audioBinder?.isPlaying ?: false)
+            mBinding.qqControlBar.updatePlayButtonState(audioBinder?.isPlaying ?: false)
         } else {
             SnakbarUtil.firstPlayMusic(mBinding.smartisanControlBar)
         }
@@ -529,6 +528,7 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
 
         override fun onServiceDisconnected(name: ComponentName) {
             audioBinder = null
+            isPlayFlag = false
         }
     }
 
@@ -540,8 +540,15 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
     override fun onResume() {
         super.onResume()
         if (isPlayFlag) {
-            setMusicInfo(audioBinder!!.musicBean)
-            mBinding.smartisanControlBar.animatorOnResume(audioBinder!!.isPlaying)
+            val binder = audioBinder ?: run {
+                isPlayFlag = false
+                return
+            }
+            val musicBean = binder.musicBean
+            if (musicBean != null) {
+                setMusicInfo(musicBean)
+            }
+            mBinding.smartisanControlBar.animatorOnResume(binder.isPlaying)
             checkCurrentSongIsFavorite(
                 mCurrentMusicBean, mBinding.qqControlBar, mBinding.smartisanControlBar
             )
@@ -560,8 +567,8 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
             Constant.NUMBER_ZERO -> startPlayListActivity(musicBean.title)
             Constant.NUMBER_ONE -> SnakbarUtil.keepGoing(mBinding.smartisanControlBar)
             Constant.NUMBER_TWO -> if (audioBinder != null) {
-                if (audioBinder!!.position == moreMenuStatus.musicPosition) {
-                    audioBinder!!.updateFavorite()
+                if (audioBinder?.position ?: 0 == moreMenuStatus.musicPosition) {
+                    audioBinder?.updateFavorite()
                     checkCurrentSongIsFavorite(
                         musicBean, mBinding.qqControlBar, mBinding.smartisanControlBar
                     )
@@ -588,7 +595,7 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
         val musicBean = moreMenuStatus.musicBean
         if (audioBinder != null) {
             if (mCurrentMusicBean!!.title == musicBean.title) {
-                audioBinder!!.playNext()
+                audioBinder?.playNext()
             }
             val songUrl = musicBean.songUrl
             // 先从本地数据库删除歌曲，再彻底删除歌曲文件。
@@ -645,7 +652,7 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
     private fun handleAftermath() {
         mBinding.smartisanControlBar.animatorStop()
         if (audioBinder != null) {
-            mPlayState = if (audioBinder!!.isPlaying) Constant.NUMBER_TWO else Constant.NUMBER_ONE
+            mPlayState = if (audioBinder?.isPlaying ?: false) Constant.NUMBER_TWO else Constant.NUMBER_ONE
 
             mSps.putValues(ContentValue(Constant.MUSIC_PLAY_STATE, mPlayState))
         }
@@ -657,7 +664,7 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
         }
         when (requestCode) {
             Constant.CODE_GALLERY_REQUEST -> {
-                mContentUri = intent!!.data
+                mContentUri = intent?.data
                 startActivityForResult(
                     ImageUitl.cropRawPhotoIntent(mContentUri), Constant.CODE_RESULT_REQUEST
                 )
@@ -727,23 +734,7 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
         }
     }
 
-    private var checkFlag = 1
-    private fun initLocationPermission() {
-        requestLocationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-    }
 
-    private val requestLocationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-
-        if (!granted) {
-            if (checkFlag == 1) {
-                checkFlag = 2
-                initLocationPermission()
-            }
-        }
-
-    }
 
     private fun initPermission() {
         if (VersionUtil.checkAndroidVersionS()) {
@@ -762,7 +753,8 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
         @JvmStatic
         var audioBinder: AudioBinder? = null
             private set
-        private var isPlayFlag = false
-
+        @JvmStatic
+        var isPlayFlag = false
+            private set
     }
 }

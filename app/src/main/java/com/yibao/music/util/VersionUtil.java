@@ -24,6 +24,10 @@ public class VersionUtil {
      * @return
      */
     public static int getNotifyFlag() {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ? PendingIntent.FLAG_IMMUTABLE:PendingIntent.FLAG_ONE_SHOT;
+        int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            flags |= PendingIntent.FLAG_IMMUTABLE;
+        }
+        return flags;
     }
 }

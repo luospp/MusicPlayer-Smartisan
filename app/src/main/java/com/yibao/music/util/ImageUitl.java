@@ -52,7 +52,7 @@ public class ImageUitl {
 
     public static ZoomImageView createZoomView(Context context) {
         ZoomImageView view = new ZoomImageView(context);
-        ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(1080, 1920);
+        ViewGroup.LayoutParams params = new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
         view.setScaleType(ImageView.ScaleType.MATRIX);
         view.reSetState();
         view.setLayoutParams(params);
@@ -143,7 +143,7 @@ public class ImageUitl {
                             .subscribe(file -> {
                                 //获取到下载得到的图片，进行本地保存
                                 String path = imageType == 1
-                                        ? Constant.MUSIC_SONG_ALBUM_ROOT : imageType == 2
+                                        ? Constant.getMusicSongAlbumRoot() : imageType == 2
                                         ? Constant.MUSIC_ARTIST_IMG_ROOT : Constant.MUSIC_ALBUM_ROOT;
                                 String fileName = imageType == 1
                                         ? songName + ".jpg" : artist + ".jpg";

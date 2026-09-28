@@ -134,19 +134,23 @@ public class MusicListUtil {
      * @param musicList d
      */
     public static List<MusicBean> sortByAbc(List<MusicBean> musicList) {
-        String str = "#";
-        musicList.sort((m1, m2) -> sortAbc(str, m1, m2));
+        musicList.sort(MusicListUtil::sortAbc);
         return musicList;
     }
 
-    private static int sortAbc(String str, MusicBean m1, MusicBean m2) {
-        if (str.equals(m2.getFirstChar())) {
-            return -1;
-        }
-        if (str.equals(m1.getFirstChar())) {
-            return 1;
-        }
-        return m1.getFirstChar().compareTo(m2.getFirstChar());
+    /**
+     * 排序比较器：# 号分组始终排在末尾，其余按字母序升序。
+     * 此前当 m2 为 "#" 时恒返回 -1，违反反对称性，导致排序结果不确定。
+     */
+    private static int sortAbc(MusicBean m1, MusicBean m2) {
+        String c1 = m1.getFirstChar();
+        String c2 = m2.getFirstChar();
+        boolean is1Hash = "#".equals(c1);
+        boolean is2Hash = "#".equals(c2);
+        if (is1Hash && is2Hash) return 0;
+        if (is1Hash) return 1;
+        if (is2Hash) return -1;
+        return c1.compareTo(c2);
     }
 
 
