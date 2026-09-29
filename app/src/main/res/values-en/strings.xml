@@ -91,7 +91,6 @@
     <string name="storage_permission">Please allow storage permissions</string>
     <string name="picture_permission">Please allow picture permission</string>
     <string name="notify_permission">Please allow notification permission</string>
-    <string name="camera_permission">Please allow camera permission</string>
 
     <string name="zh">Chinese Simplified</string>
     <string name="us">English</string>

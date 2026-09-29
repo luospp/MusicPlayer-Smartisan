@@ -11,7 +11,6 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.provider.Settings
-import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
@@ -55,7 +54,6 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
     private var mPlayState = 0
     private var lyricsPlayPosition = 0
     private var mQqBarBean: MusicBean? = null
-    private var mContentUri: Uri? = null
     private lateinit var mBinding: ActivityMainBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -292,11 +290,11 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
             else -> {
                 if (audioBinder == null) {
                     ToastUtil.showNoMusic(this)
-                } else if (audioBinder?.isPlaying ?: false) {
+                } else if (audioBinder?.isPlaying == true) {
                     // 当前播放  暂停
                     audioBinder?.pause()
                     clearDisposableProgress()
-                } else if (!(audioBinder?.isPlaying ?: false)) {
+                } else if (audioBinder?.isPlaying != true) {
                     // 当前暂停  播放
                     audioBinder?.start()
                     upDataPlayProgress()
@@ -652,37 +650,10 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
     private fun handleAftermath() {
         mBinding.smartisanControlBar.animatorStop()
         if (audioBinder != null) {
-            mPlayState = if (audioBinder?.isPlaying ?: false) Constant.NUMBER_TWO else Constant.NUMBER_ONE
+            mPlayState = if (audioBinder?.isPlaying == true) Constant.NUMBER_TWO else Constant.NUMBER_ONE
 
             mSps.putValues(ContentValue(Constant.MUSIC_PLAY_STATE, mPlayState))
         }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, intent: Intent?) {
-        if (resultCode == RESULT_CANCELED) {
-            return
-        }
-        when (requestCode) {
-            Constant.CODE_GALLERY_REQUEST -> {
-                mContentUri = intent?.data
-                startActivityForResult(
-                    ImageUitl.cropRawPhotoIntent(mContentUri), Constant.CODE_RESULT_REQUEST
-                )
-            }
-
-            Constant.CODE_CAMERA_REQUEST -> if (FileUtil.hasSdcard()) {
-                mContentUri = FileUtil.getImageContentUri(this, ImageUitl.getTempFile())
-                startActivityForResult(
-                    ImageUitl.cropRawPhotoIntent(mContentUri), Constant.CODE_RESULT_REQUEST
-                )
-            } else {
-                ToastUtil.show(this, "没发现SD卡!")
-            }
-
-            Constant.CODE_RESULT_REQUEST -> mBus.post(Constant.HEADER_PIC_URI, mContentUri)
-            else -> {}
-        }
-        super.onActivityResult(requestCode, resultCode, intent)
     }
 
     override fun resumeRequests() {

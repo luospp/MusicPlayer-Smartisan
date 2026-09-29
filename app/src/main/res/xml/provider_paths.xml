@@ -3,4 +3,8 @@
     <external-path path="Android/data/com.yibao.music/" name="files_root" />
     <external-files-path path="crash/" name="crash" />
     <external-files-path path="songAlbum/" name="song_album" />
+    <!-- 拍照输出的临时头像文件 -->
+    <external-files-path path="photo/" name="head_photo" />
+    <!-- Android 10 以下崩溃日志的保存目录 -->
+    <external-path path="CrashLog/" name="crash_log" />
 </paths>

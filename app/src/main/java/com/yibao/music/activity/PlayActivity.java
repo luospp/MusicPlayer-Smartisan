@@ -9,6 +9,8 @@ import android.os.Handler;
 import android.view.View;
 import android.widget.SeekBar;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.Nullable;
 
 import com.bumptech.glide.Glide;
@@ -61,6 +63,29 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
 
     private Disposable mCloseLyrDisposable;
     private List<MusicLyricBean> mLyricList;
+
+    private final Handler mHandler = new Handler();
+
+    /**
+     * 选择歌词返回结果
+     */
+    private final ActivityResultLauncher<Intent> mSearchLyricsLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                Intent data = result.getData();
+                // SearchLyricsActivity 使用 Constant.SELECT_LYRICS 作为 resultCode 返回歌词
+                if (data != null) {
+                    // 先删除当前歌词
+                    LyricsUtil.deleteCurrentLyric(mCurrentMusicInfo.getTitle(), mCurrentMusicInfo.getArtist());
+                    // 获取歌曲ID，下载歌词。
+                    mHandler.postDelayed(() -> {
+                        String songMid = data.getStringExtra(Constant.SONGMID);
+                        if (songMid != null) {
+                            QqMusicRemote.getOnlineLyrics(songMid, mCurrentMusicInfo.getTitle(), mCurrentMusicInfo.getArtist());
+                            showLyrics();
+                        }
+                    }, 600);
+                }
+            });
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -512,7 +537,7 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
         Intent intent = new Intent(this, SearchLyricsActivity.class);
         intent.putExtra(Constant.SONG_NAME, StringUtil.getSongName(mCurrentMusicInfo.getTitle()));
         intent.putExtra(Constant.SONG_ARTIST, StringUtil.getArtist(mCurrentMusicInfo.getArtist()));
-        startActivityForResult(intent, Constant.SELECT_LYRICS);
+        mSearchLyricsLauncher.launch(intent);
         overridePendingTransition(R.anim.dialog_push_in, 0);
     }
 
@@ -607,28 +632,6 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
                         .subscribeOn(Schedulers.io())
                         .observeOn(AndroidSchedulers.mainThread())
                         .subscribe(aLong -> PlayActivity.this.showLyrics());
-            }
-        }
-    }
-
-    private final Handler mHandler = new Handler();
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == Constant.SELECT_LYRICS) {
-            if (data != null) {
-                // 先删除当前歌词
-                LyricsUtil.deleteCurrentLyric(mCurrentMusicInfo.getTitle(), mCurrentMusicInfo.getArtist());
-                // 获取歌曲ID，下载歌词。
-                mHandler.postDelayed(() -> {
-                    String songMid = data.getStringExtra(Constant.SONGMID);
-                    if (songMid != null) {
-                        QqMusicRemote.getOnlineLyrics(songMid, mCurrentMusicInfo.getTitle(), mCurrentMusicInfo.getArtist());
-                        showLyrics();
-                    }
-                }, 600);
-
             }
         }
     }

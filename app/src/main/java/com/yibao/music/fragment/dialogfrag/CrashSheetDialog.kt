@@ -72,7 +72,7 @@ class CrashSheetDialog {
         intent.action = Intent.ACTION_VIEW
         intent.flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
         val contentUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            FileProvider.getUriForFile(mContext!!, packageName, crashFile)
+            FileProvider.getUriForFile(mContext!!, FileUtil.getFileProviderAuthority(mContext!!), crashFile)
         } else {
             Uri.fromFile(crashFile)
         }

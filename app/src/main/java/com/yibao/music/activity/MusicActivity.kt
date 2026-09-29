@@ -138,7 +138,7 @@ class MusicActivity : BaseActivity(), OnScanConfigListener {
                     mBinding.tvMusicCount.setTextColor(ColorUtil.musicbarTvDown)
                     mBinding.tvMusicCount.text =
                         if (mIsFirstScanner) "本地没有发现音乐,去下载歌曲后再来体验吧!" else "没有新增歌曲!"
-                    countDownOperation(false)
+                    countDownOperation(mIsFirstScanner)
                 }
             })
     }

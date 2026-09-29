@@ -1,24 +1,25 @@
 package com.yibao.music.fragment
 
-import android.Manifest
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.view.View
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import com.yibao.music.R
 import com.yibao.music.base.bindings.BaseMusicFragmentDev
 import com.yibao.music.base.listener.OnScanConfigListener
+import com.yibao.music.base.listener.OnTakePhotoListener
 import com.yibao.music.base.listener.OnUpdateTitleListener
 import com.yibao.music.databinding.AboutFragmentBinding
 import com.yibao.music.fragment.dialogfrag.CrashSheetDialog
-import com.yibao.music.fragment.dialogfrag.PermissionsDialog
 import com.yibao.music.fragment.dialogfrag.RelaxDialogFragment
 import com.yibao.music.fragment.dialogfrag.ScannerConfigDialog
 import com.yibao.music.fragment.dialogfrag.TakePhotoBottomSheetDialog
@@ -27,6 +28,7 @@ import com.yibao.music.model.MusicBean
 import com.yibao.music.model.greendao.MusicBeanDao
 import com.yibao.music.util.Constant
 import com.yibao.music.util.FileUtil
+import com.yibao.music.util.ImageUitl
 import com.yibao.music.util.LogUtil
 import com.yibao.music.util.LyricsUtil
 import com.yibao.music.util.ReadFavoriteFileUtil
@@ -49,6 +51,15 @@ import java.io.FileNotFoundException
  * @描述： {TODO}
  */
 class AboutFragment : BaseMusicFragmentDev<AboutFragmentBinding>(), OnScanConfigListener {
+    // 相册选择或拍照得到的图片 Uri，裁剪成功后用于设置头像
+    private var mContentUri: Uri? = null
+
+    // 拍照输出文件的 Uri
+    private var mTakePhotoUri: Uri? = null
+
+    // 裁剪前头像文件的修改时间，用于判断裁剪应用是否写出了新的头像文件
+    private var mHeaderModified = 0L
+
     override fun initView() {
         mBinding.musicBar.setToolbarTitle(getString(R.string.about))
         initData()
@@ -60,8 +71,8 @@ class AboutFragment : BaseMusicFragmentDev<AboutFragmentBinding>(), OnScanConfig
         if (file.exists()) {
             mBinding.tvDeleteErrorLyric.visibility = View.VISIBLE
         }
-        val headerFile = FileUtil.getHeaderFile()
-        if (FileUtil.getHeaderFile().exists()) {
+        val headerFile = FileUtil.getHeaderFile(requireContext())
+        if (headerFile.exists()) {
             setHeaderView(Uri.fromFile(headerFile))
         }
 
@@ -77,7 +88,7 @@ class AboutFragment : BaseMusicFragmentDev<AboutFragmentBinding>(), OnScanConfig
         mBinding.tvShare.setOnClickListener { shareMe() }
         // 头像 、拍照
         mBinding.aboutHeaderIv.setOnClickListener {
-            takePhoto()
+            showTakePhotoDialog()
         }
         // 设置头像
         mCompositeDisposable.add(mBus.toObservableType(Constant.HEADER_PIC_URI, Uri::class.java)
@@ -147,24 +158,93 @@ class AboutFragment : BaseMusicFragmentDev<AboutFragmentBinding>(), OnScanConfig
     }
 
 
-    private fun takePhoto() {
-        if (Build.VERSION.SDK_INT > Build.VERSION_CODES.S_V2) {
-            requestPermissionLauncher.launch(Manifest.permission.READ_MEDIA_IMAGES)
-        } else {
-            requestPermissionLauncher.launch(Manifest.permission.READ_EXTERNAL_STORAGE)
+    /**
+     * 设置头像入口：选图使用系统照片选择器，拍照委托系统相机，都不需要运行时权限
+     */
+    private fun showTakePhotoDialog() {
+        TakePhotoBottomSheetDialog.newInstance()
+            .getBottomDialog(mActivity, object : OnTakePhotoListener {
+                override fun takePhoto() {
+                    takePhotoByCamera()
+                }
+
+                override fun choicePhoto() {
+                    choicePhotoFromGallery()
+                }
+            })
+    }
+
+    /**
+     * 从相册选择图片，Android 13 及以上使用系统照片选择器，低版本自动回退
+     */
+    private fun choicePhotoFromGallery() {
+        pickPhotoLauncher.launch(
+            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+        )
+    }
+
+    private val pickPhotoLauncher = registerForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        LogUtil.d(mTag, "相册选择结果   $uri")
+        uri?.let { cropPhoto(it) }
+    }
+
+    /**
+     * 拍照，图片输出到应用私有目录下的临时文件
+     */
+    private fun takePhotoByCamera() {
+        if (!FileUtil.hasSdcard()) {
+            ToastUtil.show(mActivity, "没发现SD卡!")
+            return
+        }
+        mTakePhotoUri = FileUtil.getPicUri(requireContext())
+        val uri = mTakePhotoUri
+        if (uri == null) {
+            ToastUtil.show(mActivity, "没发现SD卡!")
+            return
+        }
+        takePhotoLauncher.launch(uri)
+    }
+
+    private val takePhotoLauncher = registerForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        LogUtil.d(mTag, "拍照结果   $success")
+        val uri = mTakePhotoUri
+        if (success && uri != null) {
+            cropPhoto(uri)
         }
     }
 
+    /**
+     * 裁剪图片，裁剪完成后通过 RxBus 通知刷新头像
+     */
+    private fun cropPhoto(uri: Uri) {
+        mContentUri = uri
+        mHeaderModified = FileUtil.getHeaderFile(requireContext()).lastModified()
+        try {
+            cropPhotoLauncher.launch(ImageUitl.cropRawPhotoIntent(requireContext(), uri))
+        } catch (e: ActivityNotFoundException) {
+            // 设备上没有可用的裁剪应用时，直接使用原图
+            LogUtil.d(mTag, "没有可用的裁剪应用，直接使用原图")
+            mBus.post(Constant.HEADER_PIC_URI, uri)
+        }
+    }
 
-    private val requestPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { granted ->
-        LogUtil.d(mTag, "相机权限获取结果   $granted")
-        if (granted) {
-            TakePhotoBottomSheetDialog.newInstance().getBottomDialog(mActivity)
-        } else {
-            PermissionsDialog.newInstance(getString(R.string.camera_permission))
-                .show(childFragmentManager, "permissions")
+    private val cropPhotoLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        LogUtil.d(mTag, "裁剪结果   ${result.resultCode}")
+        if (result.resultCode == Activity.RESULT_OK) {
+            // 裁剪应用写出了新的头像文件就使用裁剪结果，否则退回使用原图
+            val headerFile = FileUtil.getHeaderFile(requireContext())
+            val uri = if (headerFile.lastModified() > mHeaderModified) {
+                FileUtil.getHeaderUri(requireContext())
+            } else {
+                mContentUri
+            }
+            uri?.let { mBus.post(Constant.HEADER_PIC_URI, it) }
         }
     }
 

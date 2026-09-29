@@ -1,15 +1,12 @@
 package com.yibao.music.util;
 
-import android.annotation.SuppressLint;
 import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.res.AssetFileDescriptor;
-import android.database.Cursor;
 import android.net.Uri;
 import android.os.Environment;
-import android.provider.MediaStore;
 
+import androidx.annotation.Nullable;
 import androidx.core.content.FileProvider;
 
 import com.yibao.music.MusicApplication;
@@ -73,42 +70,42 @@ public class FileUtil {
         return b ? StringUtil.getDownAlbum(bean.getTitle(), bean.getArtist()) : StringUtil.getAlbumArtPath(context, String.valueOf(bean.getAlbumId()));
     }
 
-    public static Uri getImageContentUri(Context context, File imageFile) {
-        String filePath = imageFile.getAbsolutePath();
-        Cursor cursor = context.getContentResolver().query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                new String[]{MediaStore.Images.Media._ID},
-                MediaStore.Images.Media.DATA + "=? ",
-                new String[]{filePath}, null);
-
-        if (cursor != null && cursor.moveToFirst()) {
-            @SuppressLint("Range") int id = cursor.getInt(cursor.getColumnIndex(MediaStore.MediaColumns._ID));
-            Uri baseUri = Uri.parse("content://media/external/images/media");
-            return Uri.withAppendedPath(baseUri, "" + id);
-        } else {
-            if (imageFile.exists()) {
-                ContentValues values = new ContentValues();
-                values.put(MediaStore.Images.Media.DATA, filePath);
-                return context.getContentResolver().insert(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
-            } else {
-                return null;
-            }
-        }
-    }
-
     public static boolean hasSdcard() {
         String state = Environment.getExternalStorageState();
         // 有存储的SDCard
         return state.equals(Environment.MEDIA_MOUNTED);
     }
 
-    public static File getHeaderFile() {
-        File file = new File(Constant.HEADER_PATH);
-        if (!file.exists()) {
-            file.mkdirs();
+    /**
+     * 头像文件，保存在应用私有目录下(Android 10 起公共目录不可直接读写)
+     */
+    public static File getHeaderFile(Context context) {
+        File dir = context.getExternalFilesDir(Constant.PHOTO_DIR);
+        if (dir != null && !dir.exists()) {
+            dir.mkdirs();
         }
-        return new File(file, Constant.CROP_IMAGE_FILE_NAME);
+        return new File(dir, Constant.CROP_IMAGE_FILE_NAME);
+    }
+
+    /**
+     * 头像文件的 Uri，用于把裁剪结果授权给裁剪应用
+     *
+     * @return 外部存储不可用时返回 null
+     */
+    @Nullable
+    public static Uri getHeaderUri(Context context) {
+        File headerFile = getHeaderFile(context);
+        if (headerFile.getParentFile() == null) {
+            return null;
+        }
+        return FileProvider.getUriForFile(context, getFileProviderAuthority(context), headerFile);
+    }
+
+    /**
+     * FileProvider 的 authority，必须与 AndroidManifest 中的 authorities 保持一致
+     */
+    public static String getFileProviderAuthority(Context context) {
+        return context.getPackageName() + ".fileprovider";
     }
 
     public static File createFile(Context context, String fileName, String dirPath) {
@@ -116,13 +113,23 @@ public class FileUtil {
         return new File(apkFilePath + File.separator + fileName);
     }
 
-    public static Uri getPicUri(Context context, String savePath) {
-        File file = new File(savePath);
-        if (!file.exists()) {
-            file.mkdirs();
+    /**
+     * 拍照输出文件(临时头像)的 Uri，文件保存在应用私有目录下
+     *
+     * @param context c
+     * @return 外部存储不可用时返回 null
+     */
+    @Nullable
+    public static Uri getPicUri(Context context) {
+        File dir = context.getExternalFilesDir(Constant.PHOTO_DIR);
+        if (dir == null) {
+            return null;
         }
-        File pictureFile = new File(savePath, Constant.IMAGE_FILE_NAME);
-        return FileProvider.getUriForFile(context, context.getPackageName(), pictureFile);
+        if (!dir.exists()) {
+            dir.mkdirs();
+        }
+        File pictureFile = new File(dir, Constant.IMAGE_FILE_NAME);
+        return FileProvider.getUriForFile(context, getFileProviderAuthority(context), pictureFile);
     }
 
     public static void deleteFileDirectory(File dir) {

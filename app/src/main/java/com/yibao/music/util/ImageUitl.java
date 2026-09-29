@@ -2,12 +2,12 @@ package com.yibao.music.util;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
-import android.os.Environment;
 import android.provider.MediaStore;
 import android.view.ViewGroup;
 import android.widget.ImageView;
@@ -201,11 +201,16 @@ public class ImageUitl {
     }
 
     /**
-     * 裁剪原始的图片
+     * 裁剪原始的图片，裁剪结果输出到应用私有目录下的头像文件
+     *
+     * @param context c
+     * @param uri     待裁剪的图片
      */
-    public static Intent cropRawPhotoIntent(Uri uri) {
+    public static Intent cropRawPhotoIntent(Context context, Uri uri) {
         Intent intent = new Intent("com.android.camera.action.CROP");
         intent.setDataAndType(uri, "image/*");
+        // 源图为 content 类型的 Uri 时，需要把读取权限授予裁剪应用
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         // 设置裁剪
         intent.putExtra("crop", "true");
         // aspectX , aspectY :宽高的比例
@@ -213,26 +218,18 @@ public class ImageUitl {
         intent.putExtra("aspectY", 1);
         intent.putExtra("outputX", 480);
         intent.putExtra("outputY", 480);
-        intent.putExtra("return-data", true);
-        File headerFile = new File(Constant.HEADER_PATH);
-        if (!headerFile.exists()) {
-            headerFile.mkdirs();
-        }
-        File file = new File(headerFile, Constant.CROP_IMAGE_FILE_NAME);
-        Uri uriPath = Uri.parse("file://" + file.getAbsolutePath());
-        //将裁剪好的图输出到所建文件中
-        intent.putExtra(MediaStore.EXTRA_OUTPUT, uriPath);
-        intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
-        //注意：此处应设置return-data为false，如果设置为true，是直接返回bitmap格式的数据，耗费内存。设置为false，然后，设置裁剪完之后保存的路径，即：intent.putExtra(MediaStore.EXTRA_OUTPUT, uriPath);
-//        intent.putExtra("return-data", true);
+        // 注意：应设置return-data为false，设置为true是直接返回bitmap格式的数据，耗费内存。
         intent.putExtra("return-data", false);
+        intent.putExtra("outputFormat", Bitmap.CompressFormat.JPEG.toString());
+        // 裁剪结果输出到应用私有目录，通过 FileProvider 把写入权限授予裁剪应用
+        Uri headerUri = FileUtil.getHeaderUri(context);
+        if (headerUri != null) {
+            intent.putExtra(MediaStore.EXTRA_OUTPUT, headerUri);
+            // 非标准 action 不会自动把 EXTRA_OUTPUT 迁移到 ClipData，需要手动设置才能授权
+            intent.setClipData(ClipData.newRawUri("header", headerUri));
+            intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION);
+        }
         return intent;
-    }
-
-    public static File getTempFile() {
-        return new File(
-                Environment.getExternalStorageDirectory(),
-                Constant.IMAGE_FILE_NAME);
     }
 }
 
