@@ -87,6 +87,16 @@ class QqControlBar(context: Context?, attrs: AttributeSet? = null) :
         mBinding.qqMusicVp.setCurrentItem(position, false)
     }
 
+    /**
+     * 只更新指定歌曲页面的歌词，不重建 Pager
+     *
+     * @param musicInfo 正在播放的歌曲
+     * @param lyrics    当前歌词
+     */
+    fun updateLyrics(musicInfo: MusicBean, lyrics: String) {
+        mPagerAdapter?.updateLyrics(musicInfo, lyrics)
+    }
+
     private fun currentList(): List<MusicBean> {
         val sp = SpUtils(MusicApplication.getInstance(), Constant.MUSIC_CONFIG)
         val pageType = sp.getInt(Constant.PAGE_TYPE)

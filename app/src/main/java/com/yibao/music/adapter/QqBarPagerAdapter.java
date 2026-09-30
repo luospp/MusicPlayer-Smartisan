@@ -8,6 +8,7 @@ import android.content.Context;
 import androidx.annotation.NonNull;
 import androidx.viewpager.widget.PagerAdapter;
 
+import android.util.SparseArray;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -42,6 +43,10 @@ public class QqBarPagerAdapter
     private List<MusicBean> mList;
     private ObjectAnimator mAnimator;
     private MyAnimatorUpdateListener mAnimationListener;
+    /**
+     * 已显示的页面中，用于显示歌词(无歌词时显示歌手)的 TextView
+     */
+    private final SparseArray<TextView> mLyricsViews = new SparseArray<>();
 
     public QqBarPagerAdapter(Context context, List<MusicBean> list) {
         this.mContext = context;
@@ -70,6 +75,7 @@ public class QqBarPagerAdapter
 
     @Override
     public void destroyItem(@NonNull ViewGroup container, int position, @NonNull Object object) {
+        mLyricsViews.remove(position);
         container.removeView((View) object);
     }
 
@@ -80,8 +86,34 @@ public class QqBarPagerAdapter
         MusicBean info = mList.get(position);
         initView(info, view);
         initListener(view);
+        mLyricsViews.put(position, view.findViewById(R.id.tv_pager_art_name));
         container.addView(view);
         return view;
+    }
+
+    /**
+     * 更新指定歌曲页面的歌词显示，不重建 Pager。
+     * 页面还没创建时只记录到数据上，等页面创建时再显示。
+     *
+     * @param musicInfo 正在播放的歌曲
+     * @param lyrics    当前歌词
+     */
+    public void updateLyrics(MusicBean musicInfo, String lyrics) {
+        if (mList == null || musicInfo == null || musicInfo.getId() == null) {
+            return;
+        }
+        for (int i = 0; i < mList.size(); i++) {
+            MusicBean bean = mList.get(i);
+            if (musicInfo.getId().equals(bean.getId())) {
+                // 记录到页面自己的数据上，页面重建时可以直接显示
+                bean.setCurrentLyrics(lyrics);
+                TextView tvLyrics = mLyricsViews.get(i);
+                if (tvLyrics != null) {
+                    tvLyrics.setText(lyrics);
+                }
+                return;
+            }
+        }
     }
 
     @SuppressLint("CheckResult")

@@ -57,7 +57,6 @@ public abstract class BaseActivity extends AppCompatActivity {
     protected SearchHistoryBeanDao mSearchDao;
     protected CompositeDisposable mCompositeDisposable;
     protected Disposable mDisposableProgress;
-    protected Disposable mQqLyricsDisposable;
     protected Disposable mRxViewDisposable;
     protected PlayListBeanDao mPlayListDao;
     protected SpUtils mSps;
@@ -217,18 +216,10 @@ public abstract class BaseActivity extends AppCompatActivity {
         ToastUtil.show(this, msg);
     }
 
-    protected void disposableQqLyric() {
-        if (mQqLyricsDisposable != null) {
-            mQqLyricsDisposable.dispose();
-            mQqLyricsDisposable = null;
-        }
-    }
-
     @Override
     protected void onPause() {
         super.onPause();
         clearDisposableProgress();
-        disposableQqLyric();
         if (mCompositeDisposable != null) {
             mCompositeDisposable.dispose();
             mCompositeDisposable.clear();

@@ -26,6 +26,7 @@ import com.yibao.music.base.listener.OnUpdateTitleListener
 import com.yibao.music.databinding.ActivityMainBinding
 import com.yibao.music.model.MoreMenuStatus
 import com.yibao.music.model.MusicBean
+import com.yibao.music.model.MusicLyricBean
 import com.yibao.music.model.greendao.MusicBeanDao
 import com.yibao.music.service.MusicPlayService
 import com.yibao.music.service.MusicPlayService.AudioBinder
@@ -34,10 +35,8 @@ import com.yibao.music.util.HandleBackUtil.handleBackPress
 import com.yibao.music.util.SpUtils.ContentValue
 import com.yibao.music.view.music.QqControlBar
 import com.yibao.music.view.music.QqControlBar.OnPagerSelectListener
-import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import java.io.File
-import java.util.concurrent.TimeUnit
 
 /**
  * @author lsp
@@ -52,8 +51,10 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
     private var mMusicConfig = false
     private var isShowQqBar = false
     private var mPlayState = 0
-    private var lyricsPlayPosition = 0
-    private var mQqBarBean: MusicBean? = null
+
+    // QQBar 当前歌曲的歌词，以及已经显示出来的歌词行(只有歌词变化时才刷新)
+    private var mQqLyricList: List<MusicLyricBean> = emptyList()
+    private var mQqLyricLine: String? = null
     private lateinit var mBinding: ActivityMainBinding
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -398,65 +399,62 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
      */
     private fun switchMusicControlBar() {
         if (audioBinder != null && audioBinder?.isPlaying ?: false) {
-            if (isShowQqBar) {
+            isShowQqBar = !isShowQqBar
+            if (!isShowQqBar) {
                 mBinding.qqControlBar.visibility = View.INVISIBLE
                 mBinding.smartisanControlBar.visibility = View.VISIBLE
-                disposableQqLyric()
             } else {
-                if (audioBinder != null) {
-                    mBinding.qqControlBar.setPagerData()
-                }
+                mBinding.qqControlBar.setPagerData()
                 mBinding.qqControlBar.visibility = View.VISIBLE
                 mBinding.smartisanControlBar.visibility = View.INVISIBLE
-
-                //TODO 这里做更新歌词的操作
-//                setQqPagerLyric()
+                // 显示 QQBar 时立即刷新当前歌词
+                setQqPagerLyric()
             }
-            isShowQqBar = !isShowQqBar
         } else {
             SnakbarUtil.firstPlayMusic(mBinding.smartisanControlBar)
         }
     }
 
     /**
-     * QQbar时时更新歌词
+     * 换歌后重新加载歌词，并立即刷新 QQBar 显示的歌词
      */
     private fun setQqPagerLyric() {
-        val lyricList = LyricsUtil.getLyricList(mCurrentMusicBean)
-        disposableQqLyric()
-        if (mQqLyricsDisposable == null) {
-            if (lyricList.size > 1 && lyricsPlayPosition < lyricList.size) {
-                mQqLyricsDisposable = Observable.interval(
-                    1600, TimeUnit.MICROSECONDS
-                ) //                    .subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread()).subscribe {
-                        //通过集合，播放过的歌词就从集合中删除
-                        val lyrBean =
-                            lyricList[if (lyricsPlayPosition == lyricList.size || lyricsPlayPosition > lyricList.size) lyricList.size - 1 else lyricsPlayPosition]
-                        val lyrics = lyrBean.content
-                        val progress = audioBinder?.progress ?: 0
-                        val startTime = lyrBean.startTime
-                        val musicList = audioBinder?.musicList
-                        if (musicList != null && progress > startTime) {
-                            LogUtil.d(TAG, "歌词List的长度    ==  " + lyricList.size)
-                            if (mCurrentPosition < musicList.size) {
-                                mQqBarBean = musicList[mCurrentPosition]
-                                mQqBarBean!!.currentLyrics = lyrics
-                                musicList[mCurrentPosition] = mQqBarBean
-                            }
-                            LogUtil.d(TAG, "当前的位置 ===  $mCurrentPosition  进度 ===  $progress")
-                            LogUtil.d(TAG, "当前的时间和歌词 ===  $startTime ==  $lyrics")
-                            mBinding.qqControlBar.setPagerData()
-                            lyricsPlayPosition++
-                        }
-                    }
-            } else {
-                LogUtil.d(TAG, "========MusicActivity =====没有发现歌词 ")
-            }
-        } else {
-            LogUtil.d(TAG, "=============没有时间和歌词 ")
-            mBinding.qqControlBar.setPagerData()
+        mQqLyricList = LyricsUtil.getLyricList(mCurrentMusicBean)
+        mQqLyricLine = null
+        LogUtil.d(TAG, "QQBar 歌词行数 ==  ${mQqLyricList.size}")
+        updateQqBarLyric()
+    }
+
+    /**
+     * 根据播放进度更新 QQBar 的歌词，只在歌词行变化时才刷新显示，
+     * 避免频繁重建 Pager 导致的卡顿、图片重复加载和歌词跳变。
+     */
+    private fun updateQqBarLyric() {
+        if (!isShowQqBar || mQqLyricList.size < 2) {
+            return
         }
+        val lyrBean = getCurrentLyricLine(audioBinder?.progress ?: 0) ?: return
+        if (lyrBean.content == mQqLyricLine) {
+            return
+        }
+        val musicBean = mCurrentMusicBean ?: return
+        mQqLyricLine = lyrBean.content
+        LogUtil.d(TAG, "QQBar 歌词 ==  ${lyrBean.content}")
+        mBinding.qqControlBar.updateLyrics(musicBean, lyrBean.content)
+    }
+
+    /**
+     * 取 startTime 不大于播放进度且最接近进度的一行歌词
+     */
+    private fun getCurrentLyricLine(progress: Int): MusicLyricBean? {
+        var current: MusicLyricBean? = null
+        for (lyrBean in mQqLyricList) {
+            if (lyrBean.startTime > progress) {
+                break
+            }
+            current = lyrBean
+        }
+        return current
     }
 
     private fun setDuration() {
@@ -499,11 +497,22 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
             if (audioBinder?.isPlaying ?: false) {
                 if (isShowQqBar) {
                     mBinding.qqControlBar.setProgress(audioBinder?.progress ?: 0)
+                    // 随进度更新 QQBar 的歌词
+                    updateQqBarLyric()
                 } else {
                     mBinding.smartisanControlBar.setSongProgress(audioBinder?.progress ?: 0)
                 }
 
             }
+        }
+    }
+
+    /**
+     * 歌词下载完成后，刷新 QQBar 显示的歌词
+     */
+    override fun updateLyricsView(lyricsOK: Boolean, downMsg: String) {
+        if (lyricsOK && isShowQqBar) {
+            setQqPagerLyric()
         }
     }
 
@@ -554,6 +563,8 @@ class MainActivity : BaseActivity(), OnMusicItemClickListener, OnUpdateTitleList
             updateCurrentPlayProgress()
             setDuration()
             updateQqBar()
+            // onPause 时进度轮询被释放，回到页面需要重新开启，进度和歌词才会继续更新
+            upDataPlayProgress()
         }
 
     }

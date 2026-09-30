@@ -14,6 +14,7 @@ import com.yibao.music.base.listener.TextChangedListener
 import com.yibao.music.databinding.ActivitySearchBinding
 import com.yibao.music.fragment.dialogfrag.MoreMenuBottomDialog
 import com.yibao.music.model.MusicBean
+import com.yibao.music.model.MusicLyricBean
 import com.yibao.music.service.MusicPlayService
 import com.yibao.music.service.MusicPlayService.AudioBinder
 import com.yibao.music.util.ColorUtil
@@ -23,10 +24,6 @@ import com.yibao.music.util.LyricsUtil
 import com.yibao.music.util.SoftKeybordUtil
 import com.yibao.music.util.TitleArtistUtil
 import com.yibao.music.viewmodel.SearchViewModel
-import io.reactivex.Observable
-import io.reactivex.android.schedulers.AndroidSchedulers
-import io.reactivex.schedulers.Schedulers
-import java.util.concurrent.TimeUnit
 
 /**
  * @author lsp
@@ -36,7 +33,9 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
     private val mViewModel: SearchViewModel by lazy { gets(SearchViewModel::class.java) }
     private var mMusicBean: MusicBean? = null
     private var audioBinder: AudioBinder? = null
-    private var lyricsFlag = 0
+    // 当前歌曲的歌词，以及已经显示出来的歌词行(只有歌词变化时才刷新)
+    private var mLyricList: List<MusicLyricBean> = emptyList()
+    private var mLyricLine: String? = null
     private var mInputMethodManager: InputMethodManager? = null
     private var mAdapter: DetailsViewAdapter? = null
 
@@ -99,6 +98,8 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
             mBinding.smartisanControlBar.animatorOnResume(audioBinder?.isPlaying ?: false)
             updateLyric()
             setDuration()
+            // onPause 时进度轮询被释放，回到页面需要重新开启，进度和歌词才会继续更新
+            upDataPlayProgress()
         }
 
     }
@@ -244,6 +245,8 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
     override fun updateCurrentPlayProgress() {
         if (audioBinder != null) {
             mBinding.smartisanControlBar.setSongProgress(audioBinder?.progress ?: 0)
+            // 随进度更新歌词
+            updateLyricLine()
         }
     }
 
@@ -367,25 +370,38 @@ class SearchActivity : BaseBindingActivity<ActivitySearchBinding>(), OnMusicItem
     }
 
     private fun updateLyric() {
-        val lyricList = LyricsUtil.getLyricList(mMusicBean)
-        disposableQqLyric()
-        if (mQqLyricsDisposable == null) {
-            mQqLyricsDisposable =
-                Observable.interval(0, 2800, TimeUnit.MICROSECONDS).subscribeOn(Schedulers.io())
-                    .observeOn(AndroidSchedulers.mainThread()).subscribe {
-                        if (lyricList.size > 1 && lyricsFlag < lyricList.size) {
-                            //通过集合，播放过的歌词就从集合中删除
-                            val lyrBean = lyricList[lyricsFlag]
-                            val content = lyrBean.content
-                            val progress = audioBinder?.progress ?: 0
-                            val startTime = lyrBean.startTime
-                            if (progress > startTime) {
-                                mBinding.smartisanControlBar.setSingerName(content)
-                                lyricsFlag++
-                            }
-                        }
-                    }
+        mLyricList = LyricsUtil.getLyricList(mMusicBean)
+        mLyricLine = null
+        updateLyricLine()
+    }
+
+    /**
+     * 根据播放进度更新歌词，只在歌词行变化时才刷新显示
+     */
+    private fun updateLyricLine() {
+        if (mLyricList.size < 2) {
+            return
         }
+        val lyrBean = getCurrentLyricLine(audioBinder?.progress ?: 0) ?: return
+        if (lyrBean.content == mLyricLine) {
+            return
+        }
+        mLyricLine = lyrBean.content
+        mBinding.smartisanControlBar.setSingerName(lyrBean.content)
+    }
+
+    /**
+     * 取 startTime 不大于播放进度且最接近进度的一行歌词
+     */
+    private fun getCurrentLyricLine(progress: Int): MusicLyricBean? {
+        var current: MusicLyricBean? = null
+        for (lyrBean in mLyricList) {
+            if (lyrBean.startTime > progress) {
+                break
+            }
+            current = lyrBean
+        }
+        return current
     }
 
     override fun click(songName: String) {
