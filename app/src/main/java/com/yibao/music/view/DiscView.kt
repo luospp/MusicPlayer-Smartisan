@@ -124,6 +124,8 @@ class DiscView @JvmOverloads constructor(
     }
 
     fun initAutoRotation() {
+        // 避免重复调用时创建出多个无限循环的动画
+        stopAnimators()
         autoAnimator = ValueAnimator.ofFloat(0f, 360f).apply {
             duration = 15000
             interpolator = LinearInterpolator()
@@ -135,5 +137,26 @@ class DiscView @JvmOverloads constructor(
             }
             start()
         }
+    }
+
+    /**
+     * 停止并释放所有动画。
+     *
+     * 无限循环的 ValueAnimator 会一直挂在 AnimationHandler 的全局回调列表里，
+     * 更新监听器又持有 DiscView，页面销毁后整个 Activity 及其中的专辑图都无法回收，
+     * 所以离开窗口时必须停止。
+     */
+    fun stopAnimators() {
+        // 先置空 autoAnimator，避免 flingAnimator 结束时的 doOnEnd 又把自动旋转恢复起来
+        val auto = autoAnimator
+        autoAnimator = null
+        flingAnimator?.cancel()
+        flingAnimator = null
+        auto?.cancel()
+    }
+
+    override fun onDetachedFromWindow() {
+        stopAnimators()
+        super.onDetachedFromWindow()
     }
 }

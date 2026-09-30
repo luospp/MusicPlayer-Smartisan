@@ -275,4 +275,14 @@ class CustTonearmView @JvmOverloads constructor(
         listener = l
 
     }
+
+    override fun onDetachedFromWindow() {
+        // 唱针/阴影动画还在跑时页面被销毁，动画会继续持有本 View 及其 Context，这里统一收尾
+        lastAnimator?.cancel()
+        lastAnimator = null
+        returnAnimator?.cancel()
+        returnAnimator = null
+        mBinding.ivStylusShadow.animate().cancel()
+        super.onDetachedFromWindow()
+    }
 }

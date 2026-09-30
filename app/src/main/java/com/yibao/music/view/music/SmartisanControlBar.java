@@ -129,6 +129,13 @@ public class SmartisanControlBar extends RelativeLayout implements View.OnClickL
         }
     }
 
+    @Override
+    protected void onDetachedFromWindow() {
+        // 无限循环动画挂在 AnimationHandler 上会持有 View 及其 Context，离开窗口必须停止
+        animatorStop();
+        super.onDetachedFromWindow();
+    }
+
 
     //**************歌曲信息********************
 

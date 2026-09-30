@@ -1,5 +1,6 @@
 package com.yibao.music.activity;
 
+import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.graphics.drawable.AnimationDrawable;
 import android.media.AudioManager;
@@ -37,7 +38,6 @@ import com.yibao.music.util.StringUtil;
 
 import java.io.File;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import io.reactivex.Observable;
@@ -121,7 +121,8 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        mBinding.rotateRl.clearAnimation();
+        // clearAnimation() 只能清理 View 动画，停不掉无限循环的 ValueAnimator
+        mBinding.rotateRl.stopAnimators();
         mHandler.removeCallbacksAndMessages(null);
     }
 
@@ -337,12 +338,17 @@ public class PlayActivity extends BasePlayActivity implements View.OnClickListen
     }
 
     private void resumeAlbumAnimator() {
-        Objects.requireNonNull(mBinding.rotateRl.getAutoAnimator()).resume();
-
+        ValueAnimator animator = mBinding.rotateRl.getAutoAnimator();
+        if (animator != null) {
+            animator.resume();
+        }
     }
 
     private void pauseAlbumAnimator() {
-        Objects.requireNonNull(mBinding.rotateRl.getAutoAnimator()).pause();
+        ValueAnimator animator = mBinding.rotateRl.getAutoAnimator();
+        if (animator != null) {
+            animator.pause();
+        }
     }
 
 
