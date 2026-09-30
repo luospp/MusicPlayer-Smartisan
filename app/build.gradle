@@ -85,7 +85,7 @@ android {
         implementation 'com.squareup.retrofit2:adapter-rxjava2:2.7.1'
         annotationProcessor 'com.github.bumptech.glide:compiler:4.12.0'
         implementation 'com.github.yuweiguocn:GreenDaoUpgradeHelper:v2.1.0'
-        debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.8.1'
+        debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.14'
 
         // 百度统计
         implementation 'com.baidu.mobstat:mtj-sdk:4.0.7.6'
